@@ -7,4 +7,158 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Chapter 3
+# Chapter 3: The R Programming Language
+
+```{r}
+2+3
+```
+
+```{r}
+x = seq( from = -2 , to = 2 , by = 0.1 )
+y = x^2
+plot( x , y , col="skyblue" , type="l" )
+
+```
+
+### Arithmetic
+
+```{r}
+1+2*3^2
+
+(1+2)*3^2
+
+(1+2*3)^2
+
+((1+2)*3)^2
+
+```
+
+### Vectors
+
+```{r}
+c(1,2,3) * c(7,6,5)
+
+```
+
+### Scalar operations
+
+```{r}
+2 * c(1,2,3)
+
+```
+
+### Colon operator
+
+```{r}
+2+3:6
+
+```
+
+### Sequence operator
+
+```{r}
+
+seq( from=0 , to=3 , by=0.5001 )
+
+```
+
+### Replicate
+
+```{r}
+rep(c("A","B","C"),2)
+
+
+```
+
+### Elements
+
+```{r}
+x = c( 2.718 , 3.14 , 1.414 , 47405 )
+names(x) = c( "e" , "pi" , "sqrt2" , "zipcode" )
+x[c(2,4)]
+x[c(-1, -3)]
+x[c(FALSE, TRUE, FALSE, TRUE)]
+x[c("pi", "zipcode")]
+```
+
+### Matrix and Array
+
+```{r}
+
+matrix( 1:6 , ncol=3 )
+
+matrix( 1:6 , nrow=2 )
+
+matrix( 1:6 , nrow=2 , byrow=TRUE )
+
+
+```
+
+### List and data frame
+
+```{r}
+MyList = list( "a"=1:3 , "b"=matrix(1:6,nrow=2) , "c"="Hello, world." )
+
+MyList
+```
+
+## Exercises
+
+### Exercise 3.1 
+
+> [Purpose: Actually doing Bayesian statistics, eventually, and the next exercises, immediately.] Install R on your computer. (And if that's not exercise, I don’t know what is.)
+
+### Exercise 3.2
+
+> [Purpose: Being able to record and communicate the results of your analyses.] Open the program ExamplesOfR.R. At the end, notice the section that produces a simple graph. Your job is to save the graph so you can incorporate it into documents in the future, as you would for reporting actual data analyses. Save the graph in a format that is compatible with your word processing software. Import the saved file into your document and explain, in text, what you did. (Notice that for some word processing systems you could merely copy and paste directly from R's graphic window to the document window. But the problem with this approach is that you have no other record of the graph produced by the analysis. We want the graph to be saved separately so that it can be incorporated into various reports at a future time.)
+
+```{r}
+
+# source("DBDA2Eprograms/ExamplesOfR.R")
+
+plot( x=1:4 , y=c(1,3,2,4) , type="o" ) 
+
+jpeg(filename = "ch3_simplegraph.jpg")
+plot( x=1:4 , y=c(1,3,2,4) , type="o" ) 
+dev.off()
+
+```
+
+
+### Exercise 3.3
+
+> [Purpose: Getting experience with the details of the command syntax within R.] Adapt the program SimpleGraph.R so that it plots a cubic function (y = x3) over the interval x ∈ [−3, +3]. Save the graph in a file format of your choice. Include a properly commented listing of your code, along with the resulting graph.
+
+
+```{r}
+
+# x = seq( from = -2 , to = 2 , by = 0.1 )   # Specify vector of x values.
+# y = x^2                                    # Specify corresponding y values.
+# plot( x , y , col="skyblue" , type="l" )   # Plot the x,y points as a blue line.
+
+x = seq( from = -3 , to = 3 , by = 0.1 )   # Specify vector of x values.
+y = x^3                                    # Specify corresponding y values.
+
+
+plot( x , y , col="skyblue" , type="l" )
+jpeg(filename = "ch3_exp_function.jpg")
+plot( x , y , col="skyblue" , type="l" )   # Plot the x,y points as a blue line.
+dev.off()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
