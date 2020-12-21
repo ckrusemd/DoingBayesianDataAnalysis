@@ -4,3 +4,8 @@ _book/
 .Rproj.user/
 _bookdown_files/
 _book/
+*.jpg
+
+*.html
+
+Chapters/DBDA2Eprograms/
