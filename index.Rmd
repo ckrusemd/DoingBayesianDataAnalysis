@@ -1,5 +1,5 @@
 --- 
-title: "Bookdown Template"
+title: "Doing Bayesian Data Analysis - Notes"
 author: "Christian Kruse"
 date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
@@ -13,6 +13,8 @@ description: ""
 ---
 
 # Introduction
+
+Notes, examples and exercises from John Kruschke's Doing Bayesian Data Analysis.
 
 ```{r include=FALSE}
 
