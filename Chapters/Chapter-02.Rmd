@@ -5,6 +5,192 @@ output: html_document
 
 ```{r include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
 ```
 
-# Chapter 2
+# Chapter 2: Introduction
+
+## Credibility, Models, and Parameters
+
+* The first idea is that Bayesian inference is reallocation of credibility across possibilities. 
+* The second foundational idea is that the possibilities, over which we allocate credibility, are parameter values in meaningful mathematical models.
+
+
+## 2.1.1 Data are noisy and inferences are probabilistic
+
+
+> In summary, the essence of Bayesian inference is reallocation of credibility across possibilities. The distribution of credibility initially reflects prior knowledge about the possibilities, which can be quite vague. Then new data are observed, and the credibility is re-allocated. Possibilities that are consistent with the data garner more credibility, while possibilities that are not consistent with the data lose credibility. Bayesian analysis is the mathematics of re-allocating credibility in a logically coherent and precise way.
+
+### Normal distribution
+
+> The normal distribution has two parameters, called the mean and standard deviation.
+
+* The mean is sometimes called a **location parameter**.
+* The standard deviation is sometimes called a **scale parameter**.
+
+> The mathematical formula for the normal distribution converts the parameter values to a particular bell-like shape for the probabilities of data values. Bayesian analysis reallocates credibility among parameter values within a meaningful space of possibilities defined by the chosen model.
+
+> Bayesian analysis is very useful for assessing the relative credibility of different candidate descriptions of data.
+
+
+
+```{r}
+
+library(ggplot2)
+
+df.norm = data.frame(measurement=
+                       rnorm(n = 10000,mean = 100,sd = 15))
+
+ggplot(df.norm,aes(x=measurement)) +
+  geom_histogram(bins=100) +
+  geom_vline(xintercept = 100,color="red") +
+  geom_vline(xintercept = 100-1.96*15) +
+  geom_vline(xintercept = 100+1.96*15)
+
+```
+
+## 2.3 The steps of bayesian data analysis
+
+* Identify the data relevant to the research questions. 
+What are the measurement scales of the data? 
+Which data variables are to be predicted, and which data variables are supposed to act as predictors? 
+* Define a descriptive model for the relevant data. 
+The mathematical form and its parameters should be meaningful and appropriate to the theoretical purposes of the analysis. 
+* Specify a prior distribution on the parameters. 
+The prior must pass muster with the audience of the analysis, such as skeptical scientists. 
+* Use Bayesian inference to re-allocate credibility across parameter values. 
+Interpret the posterior distribution with respect to theoretically meaningful issues (assuming that the model is a reasonable description of the data; see next step). 
+* Check that the posterior predictions mimic the data with reasonable accuracy (i.e., conduct a “posterior predictive check”). 
+If not, then consider a different descriptive model.
+
+### My own example
+
+> The first step is identifying the relevant data.
+
+57 individuals with height and weight
+
+```{r}
+
+heights = rnorm(n = 57,mean = 180,sd = 5)
+coefficients = rnorm(57,mean = 0.5,sd=0.02)
+
+df.height_weight = data.frame(height=heights,
+                              weight=heights*coefficients)
+
+df.height_weight %>% head(20) %>% kableExtra::kable()
+
+```
+
+
+> The second step is to define a descriptive model of the data that is meaningful for our research interest.
+
+This sort of model, called linear regression
+
+```{r}
+
+ggplot(df.height_weight,aes(x=height,y=weight)) +
+  geom_point() +
+  geom_smooth()
+
+```
+
+
+> The third step in the analysis is specifying a prior distribution on the parameters.
+
+We might be able to inform the prior with previously conducted, and publicly verifiable, research on weights and heights of the target population. Or we might be able to argue for a modestly informed prior based on consensual experience of social interactions.
+
+```{r}
+
+beta = 0.5
+alpha = 0
+
+```
+
+> The fourth step is interpreting the posterior distribution.
+
+Bayesian inference has reallocated credibility across parameter values, from the vague prior distribution, to values that are consistent with the data.
+
+```{r}
+
+hist(coefficients)
+
+```
+
+One way to summarize the uncertainty is by marking the span of values that are most credible and cover 95% of the distribution. This is called the **highest density interval (HDI)**
+
+```{r}
+
+ggplot(df.height_weight,aes(x=height,y=weight)) +
+  geom_point() +
+  geom_abline(intercept = 0,slope = coefficients,color="gray90") +
+  scale_x_continuous(limits=c(0,NA)) +
+  scale_y_continuous(limits=c(0,NA)) +
+  theme_bw()
+
+```
+
+> The fifth step is to check that the model, with its most credible parameter values, actually mimics the data reasonably well. This is called a **“posterior predictive check.”**
+
+One approach is to plot a summary of predicted data from the model against the actual data.
+
+
+```{r}
+
+df.height_weight %>% 
+  crossing(coefficients) %>% 
+  dplyr::mutate(predicted_weight=height*coefficients) %>% 
+  slice(20) %>% 
+  kableExtra::kable()
+
+
+df.height_weight %>% 
+  crossing(coefficients) %>% 
+  dplyr::mutate(predicted_weight=height*coefficients) %>% 
+  gather(weight_type,value,weight,predicted_weight) %>% 
+  ggplot(.,aes(x=height,y=value,group=weight_type,color=weight_type,size=weight_type)) +
+  geom_point()
+
+```
+
+## Exercises
+
+### Exercise 2.1 
+
+>[Purpose: To get you actively manipulating mathematical models of probabilities.] Suppose we have a four-sided die from a board game. On a tetrahedral die, each face is an equilateral triangle. When you roll the die, it lands with one face down and the other three faces visible as a three-sided pyramid. The faces are numbered 1–4, with the value of the bottom face printed (as clustered dots) at the bottom edges of all three visible faces. Denote the value of the bottom face as x. Consider the following three mathematical descriptions of the probabilities of x. Model A: p(x) = 1/4. Model B: p(x) = x/10. Model C: p(x) = 12/(25x). For each model, determine the value of p(x) for each value of x. Describe in words what kind of bias (or lack of bias) is expressed by each model.
+
+* A: 25%, 25%, 25%, 25% - Equal probability for each of the four outcomes, no bias
+* B: 10%, 20%, 30%, 40% - loaded die towards higher numbers
+* C: 48%, 24%, 16%, 12% - loaded die towards lower numbers
+
+### Exercise 2.2
+
+> [Purpose: To get you actively thinking about how data cause credibilities to shift.] Suppose we have the tetrahedral die introduced in the previous exercise, along with the three candidate models of the die's probabilities. Suppose that initially, we are not sure what to believe about the die. On the one hand, the die might be fair, with each face landing with the same probability. On the other hand, the die might be biased, with the faces that have more dots landing down more often (because the dots are created by embedding heavy jewels in the die, so that the sides with more dots are more likely to land on the bottom). On yet another hand, the die might be biased such that more dots on a face make it less likely to land down (because maybe the dots are bouncy rubber or protrude from the surface). So, initially, our beliefs about the three models can be described as p(A) = p(B) = p(C) = 1/3. Now we roll the die 100 times and find these results: #1's = 25, #2's = 25, #3's = 25, #4's = 25. Do these data change our beliefs about the models? Which model now seems most likely? Suppose when we rolled the die 100 times we found these results: #1's = 48, #2's = 24, #3's = 16, #4's = 12. Now which model seems most likely?
+
+Re-using the models from above
+
+* A: 25%, 25%, 25%, 25% 
+* B: 10%, 20%, 30%, 40%
+* C: 48%, 24%, 16%, 12%
+
+Initial belief is that the models each have 1/3 probability of being the correct one.
+
+After 100 rolls:
+
+* p(1) = 25/100
+* p(2) = 25/100
+* p(3) = 25/100
+* p(4) = 25/100
+
+Would make us believe model A a lot more.
+
+
+After 100 separate rolls:
+
+* p(1) = 48/100
+* p(2) = 24/100
+* p(3) = 16/100
+* p(4) = 12/100
+
+Would make us believe model C a lot more.
+
