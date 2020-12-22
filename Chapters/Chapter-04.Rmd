@@ -5,6 +5,568 @@ output: html_document
 
 ```{r include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(ggplot2)
+library(dplyr)
 ```
 
 # Chapter 4
+
+## Probability terms
+
+### Sample space
+
+> Whenever we ask about how likely an outcome is, we always ask with a set of possible outcomes in mind. This set exhausts all possible outcomes, and the outcomes are all mutually exclusive. This set is called **the sample space**.
+
+The sample space for flips of a coin consists of two possible outcomes: head and tail.
+
+### Probability
+
+In general, a probability, whether it’s outside the head or inside the head, is just a way of assigning numbers to a set of mutually exclusive possibilities. The numbers, called “probabilities,” merely need to satisfy three properties (Kolmogorov, 1956): 
+
+* A probability value must be **nonnegative** (i.e., zero or positive). 
+* The sum of the probabilities across all events in the entire sample space must be **1.0** (i.e., one of the events in the space must happen, otherwise the space does not exhaust all possibilities). 
+* For any two **mutually exclusive events**, the probability that one or the other occurs is the sum of their individual probabilities. For example, the probability that a fair six-sided die comes up 3-dots or 4-dots is 1/6 + 1/6 = 2/6.
+
+**Example:**
+Consider the probability that a coin comes up heads when it is flipped. If the coin is fair, it should come up heads in about 50% of the flips. 
+
+If the coin (or its flipping mechanism) is biased, then it will tend to come up heads more than or less than 50% of the flips. 
+
+`Probability`: 
+The probability of coming up heads can be denoted with parameter label θ (Greek letter theta); for example, a coin is fair when `θ = 0.5` (spoken “**theta** equals point five”).
+
+### Parameter belief
+
+`Belief about a parameter`: 
+For example we might believe that `p(θ = 0.5) = 0.99`, spoken “the probability that theta equals 0.5 is 99 percent.”
+
+## Long-run relative frequency
+
+* One way is to approximate it by actually sampling from the space many times and tallying the number of times each event happens. 
+* A second way is by deriving it mathematically.
+
+### Simulation
+
+```{r}
+
+theta = 0.5
+rbinom(n = 10,size = 1,prob = theta)
+
+df.trials = rbindlist(
+  lapply(seq(1000),function(rolls)  {
+    data.frame(rolls=rolls,prop=mean(rbinom(n = rolls,size = 1,prob = theta)))
+    })
+)
+
+ggplot(df.trials,aes(x=rolls,y=prop)) + geom_line() + geom_smooth()
+
+```
+
+### Deriving
+
+If two outcomes, then p = 0.5.
+If six outcomes, then p = 1/6.
+
+## Probability Distributions
+
+A `probability distribution` is simply a list of all possible outcomes and their corresponding probabilities.
+
+Example for head-tails
+
+p(H) = 0.5
+p(T) = 0.5
+
+### Discrete distributions
+
+* Two discrete outcomes: Heads or Tails
+* Continuous binned: Measurements divided
+
+```{r}
+df.heights = 
+  data.frame(person=seq(1,10000),
+           height=rnorm(n = 10000,mean = 180,sd = 1))
+
+ggplot(df.heights,aes(x=person,y=height)) +
+  geom_point() + 
+  geom_smooth()
+
+ggplot(df.heights,aes(x=height)) +
+  geom_histogram() +
+  geom_vline(xintercept = 180)
+```
+
+### Continuous distributions
+
+Therefore, what we will do is make the intervals infinitesimally narrow, and instead of talking about the infinitesimal probability mass of each infinitesimal interval, we will talk about the ratio of the probability mass to the interval width. 
+
+That ratio is called the `probability density`.
+
+* Probability mass: Can never exceed 1
+* Probability density: Can exceed 1(!), e.g. with small intervals bin-width < 1
+
+```{r}
+## Between 180-190
+
+n_bin = df.heights %>% 
+  filter(height>=180 & height<=181) %>% 
+  nrow
+
+n_tot = df.heights %>% 
+  # filter(height>=180 & height<=190) %>% 
+  nrow
+
+probability_mass = n_bin/n_tot
+bin_width = 181-180
+
+probability_mass/bin_width
+
+ggplot(   df.heights %>% dplyr::mutate(color=(height>=180 & height<=181))    ,aes(x=person,y=height,color=color)) +
+  geom_point() + 
+  geom_smooth()
+
+```
+
+### Interval size effects
+
+### On prob mass
+
+```{r}
+
+df.prob_mass = 
+  rbindlist(lapply(seq(0.01,5,by=0.01),function (size) {
+  n_bin = df.heights %>% filter(height>=180 & height<=(180+size)) %>% nrow
+  n_tot = nrow(df.heights)
+  
+  return(data.frame(n=size,prob_mass=n_bin/n_tot))
+}))
+
+ggplot(df.prob_mass,aes(x=n,y=prob_mass)) +
+  geom_point()
+
+```
+
+
+### On prob_density
+
+```{r}
+
+df.prob_density = 
+  rbindlist(lapply(seq(0.01,5,by=0.01),function (size) {
+  n_bin = df.heights %>% filter(height>=180 & height<=(180+size)) %>% nrow
+  n_tot = nrow(df.heights)
+  
+  return(data.frame(n=size,prob_mass=n_bin/n_tot,prob_density=(n_bin/n_tot)/size))
+}))
+
+ggplot(df.prob_density,aes(x=n,y=prob_density)) +
+  geom_point()
+
+```
+
+### Normal probability density function
+
+```{r}
+df.gaussian = 
+  data.frame(trial=seq(1,10000),
+           value=rnorm(n = 10000,mean = 0,sd = 0.2))
+
+ggplot(df.gaussian,aes(x=value)) +
+  geom_histogram(binwidth = 0.02) +
+  geom_vline(xintercept = 0)
+```
+
+
+```{r}
+## Function
+normal_prob_density = function(x,my,sigma) {
+  return(
+    (1/(sigma*sqrt(2*pi)))*exp(-1/2*((x-my)/(sigma))^2 )
+  )
+}
+
+df.gaussian.prob_density = data.frame(x=seq(-1,1,by=0.01),
+                                      prob_density=normal_prob_density(x = seq(-1,1,by=0.01),my = 0,sigma = 0.2))
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red")
+
+
+```
+
+### Mean and variance of a distribution
+
+Numerical value `x` generated with probability `p(x)`.
+
+* Six-sided die: 
+
+The average value in the long run:
+
+```{r}
+
+1/6*(c(1:6))
+
+sum(1/6*(c(1:6)))
+
+```
+
+* Slot machine
+
+With varying likelihoods, what would the long term average gain be?
+
+```{r}
+
+## Two outcomes
+probabilities = seq(0.01,1,by=0.01)
+
+df.slot_machine = 
+  data.frame(prob=probabilities,
+           gain=probabilities*5+(1-probabilities)*-1)
+
+ggplot(df.slot_machine,aes(x=prob,y=gain)) +
+  geom_line() +
+  geom_hline(yintercept = 0,color="red")
+
+## Extra big prize
+df.slot_machine = 
+  data.frame(prob=probabilities,
+           gain=0.001*100+probabilities*5+(1-probabilities)*-1)
+
+ggplot(df.slot_machine,aes(x=prob,y=gain)) +
+  geom_line() +
+  geom_hline(yintercept = 0,color="red")
+
+```
+
+#### Derive mean and sd
+
+
+```{r}
+
+prob_dens_function = function(x) {
+  return(6*x*(1-x))
+}
+
+data.frame(x=seq(0,1,by=0.01)) %>% 
+  dplyr::mutate(prob=prob_dens_function(x)) %>% 
+  ggplot(.,aes(x=x,y=prob)) +
+  geom_line() +
+  geom_hline(yintercept = 1.5,color="red") +
+  geom_vline(xintercept = 0.5,color="red")
+
+# Mean: Integral over p(x)*x
+
+E_x = 6*(  (1/3*1^3-1/4*1^4) - (1/3*0^3-1/4*0^4)   )
+E_x
+
+# SD: Average of (x-E(x))^2
+
+(   seq(0,1,by=0.01)   -   prob_dens_function(seq(0,1,by=0.01)) )^2 
+
+mean(  (  seq(0,1,by=0.01)   -   prob_dens_function(seq(0,1,by=0.01)) )^2)
+
+
+
+```
+
+### Mean and SD on gaussian distribution
+
+```{r}
+
+my = 0
+sigma = 0.2
+
+var_x = sigma^2
+var_x
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red") +
+  geom_vline(xintercept = my+sigma) +
+  geom_vline(xintercept = my-sigma)
+
+
+```
+
+### Highest density interval (HDI)
+
+> The HDI indicates which points of a distribution are most credible, and which cover most of the distribution. Thus, the HDI summarizes the distribution by specifying an interval that spans most of the distribution, say 95% of it, such that every point inside the interval has higher credibility than any point outside the interval.
+
+`Definition`: The 95% HDI includes all those values of x for which the density is at least as big as some value W, such that the integral over all those x values is 95%.
+
+```{r}
+
+my = 0
+sigma = 0.2
+
+my-1.96*sigma
+my+1.96*sigma
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red") +
+  geom_vline(xintercept = my+1.96*sigma) +
+  geom_vline(xintercept = my-1.96*sigma)
+
+
+```
+
+## 4.4 Two-way distributions
+
+Example: What is the probability of being blond with blue eyes?
+
+```{r}
+
+library(datasets)
+data(HairEyeColor)
+
+HairEyeColor.male = t(HairEyeColor[,,"Male"])
+HairEyeColor.female = t(HairEyeColor[,,"Female"])
+
+HairEyeColor.male.prop = prop.table(HairEyeColor.male)
+HairEyeColor.male.female = prop.table(HairEyeColor.female)
+
+sum(HairEyeColor.male.prop)
+
+```
+
+### Marginals
+
+Probabilities of e.g. all haircolor and eye colors. Summing up row- and column-wise
+
+```{r}
+
+HairEyeColor.male.prop.matrix = 
+  as.data.frame(matrix(HairEyeColor.male.prop,ncol=4,nrow=4))
+
+colnames(HairEyeColor.male.prop.matrix) = c("Black","Brunette","Red","Blond")
+rownames(HairEyeColor.male.prop.matrix) = c("Brown","Blue","Hazel","Green")
+
+HairEyeColor.male.prop.matrix$Marginal_Eye = as.numeric(rowSums(HairEyeColor.male.prop.matrix))
+HairEyeColor.male.prop.matrix = as.data.frame(t(HairEyeColor.male.prop.matrix))
+
+HairEyeColor.male.prop.matrix$Marginal_Hair= as.numeric(rowSums(HairEyeColor.male.prop.matrix))
+HairEyeColor.male.prop.matrix = as.data.frame(t(HairEyeColor.male.prop.matrix))
+
+```
+
+Probability of Black hair p(h=Brunette) : ```{r}  sum(HairEyeColor.male.prop.matrix$Brunette) ```
+Probability of Blue eyes p(e=Blue) : ```{r}  sum(HairEyeColor.male.prop.matrix[2,]) ```
+Probability of Black hair and Blue eyes p(h=Brunette,e=Blue) ```{r}  sum(HairEyeColor.male.prop.matrix[2,2]) ```
+
+**Example**: If we draw a person and KNOW he has blue eyes, what is the probability of him having blond hair?
+
+The table shows percentages for for the ENTIRE population.
+We need to dig into the Blue Eyed only to find the percentage in that subpopulation with Blond hair.
+
+`p(h=Blond|e=Blue)`
+
+```{r}
+
+sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # 36.2% of all have blue eyes
+
+sum(HairEyeColor.male.prop.matrix[2,4]) # 10.7% have blue eyes AND blond hair
+sum(HairEyeColor.male.prop.matrix[2,4]) / sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # = 29.7% of those with blue eyes HAVE blond hair
+
+```
+
+More general, `p(h|e=Blue)`:
+
+```{r}
+
+sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # 36.2% of all have blue eyes
+
+HairEyeColor.male.prop.matrix[2,c(1:4)] / sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # = 29.7% of those with blue eyes HAVE blond hair
+
+```
+
+Arrives at intuition (**Bayesian inference!**)
+
+`p(hair|e=blue) = p(e=blue,hair) / p(e=blue)`
+
+## 4.4.2 Independence of attributes
+
+In general, when the value of y has no influence on the value of x, we know that the probability of x given y simply is the probability of x in general.
+
+`p(x, y) = p(x)*p(y)`
+
+This can be proven or disproven mathematically. I.e. eye color and hair color are not independent
+
+```{r}
+
+HairEyeColor.male.prop.matrix
+
+HairEyeColor.male.prop.matrix[1,1] # black hair, brown eyes
+
+HairEyeColor.male.prop.matrix[5,1]*HairEyeColor.male.prop.matrix[1,5]
+
+# Not independent
+```
+
+## Exercises
+
+### Exercise 4.1
+
+> [Purpose: To gain experience with the apply function in R, while dealing with a concrete example of computing conditional probabilities.]The eye-color hair-color data from Table 4.1 are built into R as the array named HairEyeColor. The array is frequencies of eye and hair color for males and females. Run the following code in R:
+
+```{r}
+
+HairEyeColor.male.prop.matrix
+
+```
+
+### Exercise 4.2
+
+> [Purpose: To give you some experience with random number generation in R.] Modify the coin flipping program in Section 4.5 RunningProportion.R to simulate a biased coin that has p(H) = 0.8. Change the height of the reference line in the plot to match p(H). Comment your code. Hint: Read the help for the sample command.
+
+
+```{r}
+
+theta = 0.8
+rbinom(n = 10,size = 1,prob = theta)
+
+df.trials = rbindlist(
+  lapply(seq(1000),function(rolls)  {
+    data.frame(rolls=rolls,prop=mean(rbinom(n = rolls,size = 1,prob = theta)))
+    })
+)
+
+ggplot(df.trials,aes(x=rolls,y=prop)) + geom_line() + geom_smooth()
+
+```
+
+### Exercise 4.3
+
+> [Purpose: To have you work through an example of the logic presented in Section 4.2.1.2.] Determine the exact probability of drawing a 10 from a shuffled pinochle deck. (In a pinochle deck, there are 48 cards. There are six values: 9, 10, Jack, Queen, King, Ace. There are two copies of each value in each of the standard four suits: hearts, diamonds, clubs, spades.) (A) What is the probability of getting a 10? (B) What is the probability of getting a 10 or Jack?
+
+```{r}
+
+# Getting a 10
+
+deck = rep(paste(c("H","D","C","S"),c("9","10","J","Q","K","A")),2)
+
+length(which(grepl("10",deck)))/length(deck)
+
+length(which(grepl("10|J",deck)))/length(deck)
+
+```
+
+
+### Exercise 4.4
+
+> [Purpose: To give you hands-on experience with a simple probability density function, in R and in calculus, and to reemphasize that density functions can have values larger than 1.] Consider a spinner with a [0,1] scale on its circumference. Suppose that the spinner is slanted or magnetized or bent in some way such that it is biased, and its probability density function is p(x) = 6x(1 − x) over the interval x ϵ [0,1]. (A) Adapt the program IntegralOfDensity.R to plot this density function and approximate its integral. Comment your code. Be careful to consider values of x only in the interval [0,1]. Hint: You can omit the first couple of lines regarding meanval and sdval, because those parameter values pertain only to the normal distribution. Then set xlow=0 and xhigh=1, and set dx to some small value. (B) Derive the exact integral using calculus. Hint: See the example, Equation 4.7. (C) Does this function satisfy Equation 4.3? (D) From inspecting the graph, what is the maximal value of p(x)?
+
+
+```{r}
+
+prob_dens_function = function(x) {
+  return(6*x*(1-x))
+}
+
+data.frame(x=seq(0,1,by=0.01)) %>% 
+  dplyr::mutate(prob=prob_dens_function(x)) %>% 
+  ggplot(.,aes(x=x,y=prob)) +
+  geom_line() +
+  geom_hline(yintercept = 1.5,color="red") +
+  geom_vline(xintercept = 0.5,color="red")
+
+library(stats)
+
+# Approx
+
+E_x = 6*(  (1/2*1^3-1/3*1^4)   )
+E_x
+
+# Integral
+stats::integrate(prob_dens_function,lower = 0,upper = 1)
+
+# Max density
+1.5
+
+```
+
+### Exercise 1.5
+
+> [Purpose: To have you use a normal curve to describe beliefs. It’s also handy to know the area under the normal curve between μ and σ.] 
+
+* (A) Adapt the code from IntegralOfDensity.R to determine (approximately) the probability mass under the normal curve from x = μ − σ to x = μ + σ. Comment your code. Hint: Just change xlow and xhigh appropriately, and change the text location so that the area still appears within the plot. 
+
+```{r}
+
+normal_prob_density = function(x,my = 0,sigma = 0.2) {
+  return(
+    (1/(sigma*sqrt(2*pi)))*exp(-1/2*((x-my)/(sigma))^2 )
+  )
+}
+
+my-sigma
+my+sigma
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red") +
+  geom_vline(xintercept = my+sigma) +
+  geom_vline(xintercept = my-sigma)
+
+stats::integrate(normal_prob_density,lower = (my-sigma),upper = (my+sigma))
+
+```
+
+* (B) Now use the normal curve to describe the following belief. Suppose you believe that women’s heights follow a bell-shaped distribution, centered at 162 cm with about two-thirds of all women having heights between 147 and 177 cm. What should be the μ and σ parameter values?
+
+```{r}
+
+my = 162
+sigma = 177-my
+sigma
+
+```
+
+
+### Exercise 4.6
+
+> [Purpose: Recognize and work with the fact that Equation 4.9 can be solved for the joint probability, which will be crucial for developing Bayes' theorem.] School children were surveyed regarding their favorite foods. Of the total sample, 20% were 1st graders, 20% were 6th graders, and 60% were 11th graders. For each grade, the following table shows the proportion of respondents that chose each of three foods as their favorite: 
+
+* From that information, construct a table of joint probabilities of grade and favorite food. 
+* Also, say whether grade and favorite food are independent or not, and how you ascertained the answer. 
+
+Hint: You are given p(grade) and p(food|grade). You need to determine p(grade,food).
+
+
+```{r}
+
+df.grade_food = data.frame(matrix(c(0.3,0.6,0.3,0.6,0.3,0.1,0.1,0.1,0.6),nrow = 3,ncol = 3)) # p(food|grade)
+
+colnames(df.grade_food) = c("Ice cream","Fruit","French Fries")
+rownames(df.grade_food) = c("1st","6th","11th")
+
+df.grade_food
+
+p_1st = 0.2 #p_grade
+p_6th = 0.2 #p_grade
+p_11th = 0.6 #p_grade
+
+df.grade_food$Marginal_Grade = c(p_1st,p_6th,p_11th)
+
+df.grade_food
+ 
+df.grade_food = df.grade_food[,c(1:3)] * df.grade_food$Marginal_Grade # p(food,grade) = p(food|grade) * p(grade)
+df.grade_food
+
+# Independence
+
+df.grade_food[1,1] 
+p_1st * sum(df.grade_food[,1]) # Not independent
+
+```
+
+
+
+
+
+
+
+
+
+
