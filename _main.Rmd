@@ -1,0 +1,1790 @@
+--- 
+title: "Doing Bayesian Data Analysis - Notes"
+author: "Christian Kruse"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+output: bookdown::gitbook
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+link-citations: yes
+github-repo: rstudio/bookdown-demo
+description: ""
+---
+
+# Introduction
+
+Notes, examples and exercises from John Kruschke's Doing Bayesian Data Analysis.
+
+```{r include=FALSE}
+
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+```
+
+<!--chapter:end:index.Rmd-->
+
+---
+title: "Chapter 1"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 1
+
+<!--chapter:end:Chapters/Chapter-01.Rmd-->
+
+---
+title: "Chapter 2"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+```
+
+# Chapter 2: Introduction
+
+## Credibility, Models, and Parameters
+
+* The first idea is that Bayesian inference is reallocation of credibility across possibilities. 
+* The second foundational idea is that the possibilities, over which we allocate credibility, are parameter values in meaningful mathematical models.
+
+
+## 2.1.1 Data are noisy and inferences are probabilistic
+
+
+> In summary, the essence of Bayesian inference is reallocation of credibility across possibilities. The distribution of credibility initially reflects prior knowledge about the possibilities, which can be quite vague. Then new data are observed, and the credibility is re-allocated. Possibilities that are consistent with the data garner more credibility, while possibilities that are not consistent with the data lose credibility. Bayesian analysis is the mathematics of re-allocating credibility in a logically coherent and precise way.
+
+### Normal distribution
+
+> The normal distribution has two parameters, called the mean and standard deviation.
+
+* The mean is sometimes called a **location parameter**.
+* The standard deviation is sometimes called a **scale parameter**.
+
+> The mathematical formula for the normal distribution converts the parameter values to a particular bell-like shape for the probabilities of data values. Bayesian analysis reallocates credibility among parameter values within a meaningful space of possibilities defined by the chosen model.
+
+> Bayesian analysis is very useful for assessing the relative credibility of different candidate descriptions of data.
+
+
+
+```{r}
+
+library(ggplot2)
+
+df.norm = data.frame(measurement=
+                       rnorm(n = 10000,mean = 100,sd = 15))
+
+ggplot(df.norm,aes(x=measurement)) +
+  geom_histogram(bins=100) +
+  geom_vline(xintercept = 100,color="red") +
+  geom_vline(xintercept = 100-1.96*15) +
+  geom_vline(xintercept = 100+1.96*15)
+
+```
+
+## 2.3 The steps of bayesian data analysis
+
+* Identify the data relevant to the research questions. 
+What are the measurement scales of the data? 
+Which data variables are to be predicted, and which data variables are supposed to act as predictors? 
+* Define a descriptive model for the relevant data. 
+The mathematical form and its parameters should be meaningful and appropriate to the theoretical purposes of the analysis. 
+* Specify a prior distribution on the parameters. 
+The prior must pass muster with the audience of the analysis, such as skeptical scientists. 
+* Use Bayesian inference to re-allocate credibility across parameter values. 
+Interpret the posterior distribution with respect to theoretically meaningful issues (assuming that the model is a reasonable description of the data; see next step). 
+* Check that the posterior predictions mimic the data with reasonable accuracy (i.e., conduct a “posterior predictive check”). 
+If not, then consider a different descriptive model.
+
+### My own example
+
+> The first step is identifying the relevant data.
+
+57 individuals with height and weight
+
+```{r}
+
+heights = rnorm(n = 57,mean = 180,sd = 5)
+coefficients = rnorm(57,mean = 0.5,sd=0.02)
+
+df.height_weight = data.frame(height=heights,
+                              weight=heights*coefficients)
+
+df.height_weight %>% head(20) %>% kableExtra::kable()
+
+```
+
+
+> The second step is to define a descriptive model of the data that is meaningful for our research interest.
+
+This sort of model, called linear regression
+
+```{r}
+
+ggplot(df.height_weight,aes(x=height,y=weight)) +
+  geom_point() +
+  geom_smooth()
+
+```
+
+
+> The third step in the analysis is specifying a prior distribution on the parameters.
+
+We might be able to inform the prior with previously conducted, and publicly verifiable, research on weights and heights of the target population. Or we might be able to argue for a modestly informed prior based on consensual experience of social interactions.
+
+```{r}
+
+beta = 0.5
+alpha = 0
+
+```
+
+> The fourth step is interpreting the posterior distribution.
+
+Bayesian inference has reallocated credibility across parameter values, from the vague prior distribution, to values that are consistent with the data.
+
+```{r}
+
+hist(coefficients)
+
+```
+
+One way to summarize the uncertainty is by marking the span of values that are most credible and cover 95% of the distribution. This is called the **highest density interval (HDI)**
+
+```{r}
+
+ggplot(df.height_weight,aes(x=height,y=weight)) +
+  geom_point() +
+  geom_abline(intercept = 0,slope = coefficients,color="gray90") +
+  scale_x_continuous(limits=c(0,NA)) +
+  scale_y_continuous(limits=c(0,NA)) +
+  theme_bw()
+
+```
+
+> The fifth step is to check that the model, with its most credible parameter values, actually mimics the data reasonably well. This is called a **“posterior predictive check.”**
+
+One approach is to plot a summary of predicted data from the model against the actual data.
+
+
+```{r}
+
+df.height_weight %>% 
+  crossing(coefficients) %>% 
+  dplyr::mutate(predicted_weight=height*coefficients) %>% 
+  slice(20) %>% 
+  kableExtra::kable()
+
+
+df.height_weight %>% 
+  crossing(coefficients) %>% 
+  dplyr::mutate(predicted_weight=height*coefficients) %>% 
+  gather(weight_type,value,weight,predicted_weight) %>% 
+  ggplot(.,aes(x=height,y=value,group=weight_type,color=weight_type,size=weight_type)) +
+  geom_point()
+
+```
+
+## Exercises
+
+### Exercise 2.1 
+
+>[Purpose: To get you actively manipulating mathematical models of probabilities.] Suppose we have a four-sided die from a board game. On a tetrahedral die, each face is an equilateral triangle. When you roll the die, it lands with one face down and the other three faces visible as a three-sided pyramid. The faces are numbered 1–4, with the value of the bottom face printed (as clustered dots) at the bottom edges of all three visible faces. Denote the value of the bottom face as x. Consider the following three mathematical descriptions of the probabilities of x. Model A: p(x) = 1/4. Model B: p(x) = x/10. Model C: p(x) = 12/(25x). For each model, determine the value of p(x) for each value of x. Describe in words what kind of bias (or lack of bias) is expressed by each model.
+
+* A: 25%, 25%, 25%, 25% - Equal probability for each of the four outcomes, no bias
+* B: 10%, 20%, 30%, 40% - loaded die towards higher numbers
+* C: 48%, 24%, 16%, 12% - loaded die towards lower numbers
+
+### Exercise 2.2
+
+> [Purpose: To get you actively thinking about how data cause credibilities to shift.] Suppose we have the tetrahedral die introduced in the previous exercise, along with the three candidate models of the die's probabilities. Suppose that initially, we are not sure what to believe about the die. On the one hand, the die might be fair, with each face landing with the same probability. On the other hand, the die might be biased, with the faces that have more dots landing down more often (because the dots are created by embedding heavy jewels in the die, so that the sides with more dots are more likely to land on the bottom). On yet another hand, the die might be biased such that more dots on a face make it less likely to land down (because maybe the dots are bouncy rubber or protrude from the surface). So, initially, our beliefs about the three models can be described as p(A) = p(B) = p(C) = 1/3. Now we roll the die 100 times and find these results: #1's = 25, #2's = 25, #3's = 25, #4's = 25. Do these data change our beliefs about the models? Which model now seems most likely? Suppose when we rolled the die 100 times we found these results: #1's = 48, #2's = 24, #3's = 16, #4's = 12. Now which model seems most likely?
+
+Re-using the models from above
+
+* A: 25%, 25%, 25%, 25% 
+* B: 10%, 20%, 30%, 40%
+* C: 48%, 24%, 16%, 12%
+
+Initial belief is that the models each have 1/3 probability of being the correct one.
+
+After 100 rolls:
+
+* p(1) = 25/100
+* p(2) = 25/100
+* p(3) = 25/100
+* p(4) = 25/100
+
+Would make us believe model A a lot more.
+
+
+After 100 separate rolls:
+
+* p(1) = 48/100
+* p(2) = 24/100
+* p(3) = 16/100
+* p(4) = 12/100
+
+Would make us believe model C a lot more.
+
+
+<!--chapter:end:Chapters/Chapter-02.Rmd-->
+
+---
+title: "Chapter 3"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 3: The R Programming Language
+
+```{r}
+2+3
+```
+
+```{r}
+x = seq( from = -2 , to = 2 , by = 0.1 )
+y = x^2
+plot( x , y , col="skyblue" , type="l" )
+
+```
+
+### Arithmetic
+
+```{r}
+1+2*3^2
+
+(1+2)*3^2
+
+(1+2*3)^2
+
+((1+2)*3)^2
+
+```
+
+### Vectors
+
+```{r}
+c(1,2,3) * c(7,6,5)
+
+```
+
+### Scalar operations
+
+```{r}
+2 * c(1,2,3)
+
+```
+
+### Colon operator
+
+```{r}
+2+3:6
+
+```
+
+### Sequence operator
+
+```{r}
+
+seq( from=0 , to=3 , by=0.5001 )
+
+```
+
+### Replicate
+
+```{r}
+rep(c("A","B","C"),2)
+
+
+```
+
+### Elements
+
+```{r}
+x = c( 2.718 , 3.14 , 1.414 , 47405 )
+names(x) = c( "e" , "pi" , "sqrt2" , "zipcode" )
+x[c(2,4)]
+x[c(-1, -3)]
+x[c(FALSE, TRUE, FALSE, TRUE)]
+x[c("pi", "zipcode")]
+```
+
+### Matrix and Array
+
+```{r}
+
+matrix( 1:6 , ncol=3 )
+
+matrix( 1:6 , nrow=2 )
+
+matrix( 1:6 , nrow=2 , byrow=TRUE )
+
+
+```
+
+### List and data frame
+
+```{r}
+MyList = list( "a"=1:3 , "b"=matrix(1:6,nrow=2) , "c"="Hello, world." )
+
+MyList
+```
+
+## Exercises
+
+### Exercise 3.1 
+
+> [Purpose: Actually doing Bayesian statistics, eventually, and the next exercises, immediately.] Install R on your computer. (And if that's not exercise, I don’t know what is.)
+
+### Exercise 3.2
+
+> [Purpose: Being able to record and communicate the results of your analyses.] Open the program ExamplesOfR.R. At the end, notice the section that produces a simple graph. Your job is to save the graph so you can incorporate it into documents in the future, as you would for reporting actual data analyses. Save the graph in a format that is compatible with your word processing software. Import the saved file into your document and explain, in text, what you did. (Notice that for some word processing systems you could merely copy and paste directly from R's graphic window to the document window. But the problem with this approach is that you have no other record of the graph produced by the analysis. We want the graph to be saved separately so that it can be incorporated into various reports at a future time.)
+
+```{r}
+
+# source("DBDA2Eprograms/ExamplesOfR.R")
+
+plot( x=1:4 , y=c(1,3,2,4) , type="o" ) 
+
+jpeg(filename = "ch3_simplegraph.jpg")
+plot( x=1:4 , y=c(1,3,2,4) , type="o" ) 
+dev.off()
+
+```
+
+
+### Exercise 3.3
+
+> [Purpose: Getting experience with the details of the command syntax within R.] Adapt the program SimpleGraph.R so that it plots a cubic function (y = x3) over the interval x ∈ [−3, +3]. Save the graph in a file format of your choice. Include a properly commented listing of your code, along with the resulting graph.
+
+
+```{r}
+
+# x = seq( from = -2 , to = 2 , by = 0.1 )   # Specify vector of x values.
+# y = x^2                                    # Specify corresponding y values.
+# plot( x , y , col="skyblue" , type="l" )   # Plot the x,y points as a blue line.
+
+x = seq( from = -3 , to = 3 , by = 0.1 )   # Specify vector of x values.
+y = x^3                                    # Specify corresponding y values.
+
+
+plot( x , y , col="skyblue" , type="l" )
+jpeg(filename = "ch3_exp_function.jpg")
+plot( x , y , col="skyblue" , type="l" )   # Plot the x,y points as a blue line.
+dev.off()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--chapter:end:Chapters/Chapter-03.Rmd-->
+
+---
+title: "Chapter 4"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(ggplot2)
+library(dplyr)
+```
+
+# Chapter 4
+
+## Probability terms
+
+### Sample space
+
+> Whenever we ask about how likely an outcome is, we always ask with a set of possible outcomes in mind. This set exhausts all possible outcomes, and the outcomes are all mutually exclusive. This set is called **the sample space**.
+
+The sample space for flips of a coin consists of two possible outcomes: head and tail.
+
+### Probability
+
+In general, a probability, whether it’s outside the head or inside the head, is just a way of assigning numbers to a set of mutually exclusive possibilities. The numbers, called “probabilities,” merely need to satisfy three properties (Kolmogorov, 1956): 
+
+* A probability value must be **nonnegative** (i.e., zero or positive). 
+* The sum of the probabilities across all events in the entire sample space must be **1.0** (i.e., one of the events in the space must happen, otherwise the space does not exhaust all possibilities). 
+* For any two **mutually exclusive events**, the probability that one or the other occurs is the sum of their individual probabilities. For example, the probability that a fair six-sided die comes up 3-dots or 4-dots is 1/6 + 1/6 = 2/6.
+
+**Example:**
+Consider the probability that a coin comes up heads when it is flipped. If the coin is fair, it should come up heads in about 50% of the flips. 
+
+If the coin (or its flipping mechanism) is biased, then it will tend to come up heads more than or less than 50% of the flips. 
+
+`Probability`: 
+The probability of coming up heads can be denoted with parameter label θ (Greek letter theta); for example, a coin is fair when `θ = 0.5` (spoken “**theta** equals point five”).
+
+### Parameter belief
+
+`Belief about a parameter`: 
+For example we might believe that `p(θ = 0.5) = 0.99`, spoken “the probability that theta equals 0.5 is 99 percent.”
+
+## Long-run relative frequency
+
+* One way is to approximate it by actually sampling from the space many times and tallying the number of times each event happens. 
+* A second way is by deriving it mathematically.
+
+### Simulation
+
+```{r}
+
+theta = 0.5
+rbinom(n = 10,size = 1,prob = theta)
+
+df.trials = rbindlist(
+  lapply(seq(1000),function(rolls)  {
+    data.frame(rolls=rolls,prop=mean(rbinom(n = rolls,size = 1,prob = theta)))
+    })
+)
+
+ggplot(df.trials,aes(x=rolls,y=prop)) + geom_line() + geom_smooth()
+
+```
+
+### Deriving
+
+If two outcomes, then p = 0.5.
+If six outcomes, then p = 1/6.
+
+## Probability Distributions
+
+A `probability distribution` is simply a list of all possible outcomes and their corresponding probabilities.
+
+Example for head-tails
+
+p(H) = 0.5
+p(T) = 0.5
+
+### Discrete distributions
+
+* Two discrete outcomes: Heads or Tails
+* Continuous binned: Measurements divided
+
+```{r}
+df.heights = 
+  data.frame(person=seq(1,10000),
+           height=rnorm(n = 10000,mean = 180,sd = 1))
+
+ggplot(df.heights,aes(x=person,y=height)) +
+  geom_point() + 
+  geom_smooth()
+
+ggplot(df.heights,aes(x=height)) +
+  geom_histogram() +
+  geom_vline(xintercept = 180)
+```
+
+### Continuous distributions
+
+Therefore, what we will do is make the intervals infinitesimally narrow, and instead of talking about the infinitesimal probability mass of each infinitesimal interval, we will talk about the ratio of the probability mass to the interval width. 
+
+That ratio is called the `probability density`.
+
+* Probability mass: Can never exceed 1
+* Probability density: Can exceed 1(!), e.g. with small intervals bin-width < 1
+
+```{r}
+## Between 180-190
+
+n_bin = df.heights %>% 
+  filter(height>=180 & height<=181) %>% 
+  nrow
+
+n_tot = df.heights %>% 
+  # filter(height>=180 & height<=190) %>% 
+  nrow
+
+probability_mass = n_bin/n_tot
+bin_width = 181-180
+
+probability_mass/bin_width
+
+ggplot(   df.heights %>% dplyr::mutate(color=(height>=180 & height<=181))    ,aes(x=person,y=height,color=color)) +
+  geom_point() + 
+  geom_smooth()
+
+```
+
+### Interval size effects
+
+### On prob mass
+
+```{r}
+
+df.prob_mass = 
+  rbindlist(lapply(seq(0.01,5,by=0.01),function (size) {
+  n_bin = df.heights %>% filter(height>=180 & height<=(180+size)) %>% nrow
+  n_tot = nrow(df.heights)
+  
+  return(data.frame(n=size,prob_mass=n_bin/n_tot))
+}))
+
+ggplot(df.prob_mass,aes(x=n,y=prob_mass)) +
+  geom_point()
+
+```
+
+
+### On prob_density
+
+```{r}
+
+df.prob_density = 
+  rbindlist(lapply(seq(0.01,5,by=0.01),function (size) {
+  n_bin = df.heights %>% filter(height>=180 & height<=(180+size)) %>% nrow
+  n_tot = nrow(df.heights)
+  
+  return(data.frame(n=size,prob_mass=n_bin/n_tot,prob_density=(n_bin/n_tot)/size))
+}))
+
+ggplot(df.prob_density,aes(x=n,y=prob_density)) +
+  geom_point()
+
+```
+
+### Normal probability density function
+
+```{r}
+df.gaussian = 
+  data.frame(trial=seq(1,10000),
+           value=rnorm(n = 10000,mean = 0,sd = 0.2))
+
+ggplot(df.gaussian,aes(x=value)) +
+  geom_histogram(binwidth = 0.02) +
+  geom_vline(xintercept = 0)
+```
+
+
+```{r}
+## Function
+normal_prob_density = function(x,my,sigma) {
+  return(
+    (1/(sigma*sqrt(2*pi)))*exp(-1/2*((x-my)/(sigma))^2 )
+  )
+}
+
+df.gaussian.prob_density = data.frame(x=seq(-1,1,by=0.01),
+                                      prob_density=normal_prob_density(x = seq(-1,1,by=0.01),my = 0,sigma = 0.2))
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red")
+
+
+```
+
+### Mean and variance of a distribution
+
+Numerical value `x` generated with probability `p(x)`.
+
+* Six-sided die: 
+
+The average value in the long run:
+
+```{r}
+
+1/6*(c(1:6))
+
+sum(1/6*(c(1:6)))
+
+```
+
+* Slot machine
+
+With varying likelihoods, what would the long term average gain be?
+
+```{r}
+
+## Two outcomes
+probabilities = seq(0.01,1,by=0.01)
+
+df.slot_machine = 
+  data.frame(prob=probabilities,
+           gain=probabilities*5+(1-probabilities)*-1)
+
+ggplot(df.slot_machine,aes(x=prob,y=gain)) +
+  geom_line() +
+  geom_hline(yintercept = 0,color="red")
+
+## Extra big prize
+df.slot_machine = 
+  data.frame(prob=probabilities,
+           gain=0.001*100+probabilities*5+(1-probabilities)*-1)
+
+ggplot(df.slot_machine,aes(x=prob,y=gain)) +
+  geom_line() +
+  geom_hline(yintercept = 0,color="red")
+
+```
+
+#### Derive mean and sd
+
+
+```{r}
+
+prob_dens_function = function(x) {
+  return(6*x*(1-x))
+}
+
+data.frame(x=seq(0,1,by=0.01)) %>% 
+  dplyr::mutate(prob=prob_dens_function(x)) %>% 
+  ggplot(.,aes(x=x,y=prob)) +
+  geom_line() +
+  geom_hline(yintercept = 1.5,color="red") +
+  geom_vline(xintercept = 0.5,color="red")
+
+# Mean: Integral over p(x)*x
+
+E_x = 6*(  (1/3*1^3-1/4*1^4) - (1/3*0^3-1/4*0^4)   )
+E_x
+
+# SD: Average of (x-E(x))^2
+
+(   seq(0,1,by=0.01)   -   prob_dens_function(seq(0,1,by=0.01)) )^2 
+
+mean(  (  seq(0,1,by=0.01)   -   prob_dens_function(seq(0,1,by=0.01)) )^2)
+
+
+
+```
+
+### Mean and SD on gaussian distribution
+
+```{r}
+
+my = 0
+sigma = 0.2
+
+var_x = sigma^2
+var_x
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red") +
+  geom_vline(xintercept = my+sigma) +
+  geom_vline(xintercept = my-sigma)
+
+
+```
+
+### Highest density interval (HDI)
+
+> The HDI indicates which points of a distribution are most credible, and which cover most of the distribution. Thus, the HDI summarizes the distribution by specifying an interval that spans most of the distribution, say 95% of it, such that every point inside the interval has higher credibility than any point outside the interval.
+
+`Definition`: The 95% HDI includes all those values of x for which the density is at least as big as some value W, such that the integral over all those x values is 95%.
+
+```{r}
+
+my = 0
+sigma = 0.2
+
+my-1.96*sigma
+my+1.96*sigma
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red") +
+  geom_vline(xintercept = my+1.96*sigma) +
+  geom_vline(xintercept = my-1.96*sigma)
+
+
+```
+
+## 4.4 Two-way distributions
+
+Example: What is the probability of being blond with blue eyes?
+
+```{r}
+
+library(datasets)
+data(HairEyeColor)
+
+HairEyeColor.male = t(HairEyeColor[,,"Male"])
+HairEyeColor.female = t(HairEyeColor[,,"Female"])
+
+HairEyeColor.male.prop = prop.table(HairEyeColor.male)
+HairEyeColor.male.female = prop.table(HairEyeColor.female)
+
+sum(HairEyeColor.male.prop)
+
+```
+
+### Marginals
+
+Probabilities of e.g. all haircolor and eye colors. Summing up row- and column-wise
+
+```{r}
+
+HairEyeColor.male.prop.matrix = 
+  as.data.frame(matrix(HairEyeColor.male.prop,ncol=4,nrow=4))
+
+colnames(HairEyeColor.male.prop.matrix) = c("Black","Brunette","Red","Blond")
+rownames(HairEyeColor.male.prop.matrix) = c("Brown","Blue","Hazel","Green")
+
+HairEyeColor.male.prop.matrix$Marginal_Eye = as.numeric(rowSums(HairEyeColor.male.prop.matrix))
+HairEyeColor.male.prop.matrix = as.data.frame(t(HairEyeColor.male.prop.matrix))
+
+HairEyeColor.male.prop.matrix$Marginal_Hair= as.numeric(rowSums(HairEyeColor.male.prop.matrix))
+HairEyeColor.male.prop.matrix = as.data.frame(t(HairEyeColor.male.prop.matrix))
+
+```
+
+Probability of Black hair p(h=Brunette) : ```{r}  sum(HairEyeColor.male.prop.matrix$Brunette) ```
+Probability of Blue eyes p(e=Blue) : ```{r}  sum(HairEyeColor.male.prop.matrix[2,]) ```
+Probability of Black hair and Blue eyes p(h=Brunette,e=Blue) ```{r}  sum(HairEyeColor.male.prop.matrix[2,2]) ```
+
+**Example**: If we draw a person and KNOW he has blue eyes, what is the probability of him having blond hair?
+
+The table shows percentages for for the ENTIRE population.
+We need to dig into the Blue Eyed only to find the percentage in that subpopulation with Blond hair.
+
+`p(h=Blond|e=Blue)`
+
+```{r}
+
+sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # 36.2% of all have blue eyes
+
+sum(HairEyeColor.male.prop.matrix[2,4]) # 10.7% have blue eyes AND blond hair
+sum(HairEyeColor.male.prop.matrix[2,4]) / sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # = 29.7% of those with blue eyes HAVE blond hair
+
+```
+
+More general, `p(h|e=Blue)`:
+
+```{r}
+
+sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # 36.2% of all have blue eyes
+
+HairEyeColor.male.prop.matrix[2,c(1:4)] / sum(HairEyeColor.male.prop.matrix[2,c(1:4)]) # = 29.7% of those with blue eyes HAVE blond hair
+
+```
+
+Arrives at intuition (**Bayesian inference!**)
+
+`p(hair|e=blue) = p(e=blue,hair) / p(e=blue)`
+
+## 4.4.2 Independence of attributes
+
+In general, when the value of y has no influence on the value of x, we know that the probability of x given y simply is the probability of x in general.
+
+`p(x, y) = p(x)*p(y)`
+
+This can be proven or disproven mathematically. I.e. eye color and hair color are not independent
+
+```{r}
+
+HairEyeColor.male.prop.matrix
+
+HairEyeColor.male.prop.matrix[1,1] # black hair, brown eyes
+
+HairEyeColor.male.prop.matrix[5,1]*HairEyeColor.male.prop.matrix[1,5]
+
+# Not independent
+```
+
+## Exercises
+
+### Exercise 4.1
+
+> [Purpose: To gain experience with the apply function in R, while dealing with a concrete example of computing conditional probabilities.]The eye-color hair-color data from Table 4.1 are built into R as the array named HairEyeColor. The array is frequencies of eye and hair color for males and females. Run the following code in R:
+
+```{r}
+
+HairEyeColor.male.prop.matrix
+
+```
+
+### Exercise 4.2
+
+> [Purpose: To give you some experience with random number generation in R.] Modify the coin flipping program in Section 4.5 RunningProportion.R to simulate a biased coin that has p(H) = 0.8. Change the height of the reference line in the plot to match p(H). Comment your code. Hint: Read the help for the sample command.
+
+
+```{r}
+
+theta = 0.8
+rbinom(n = 10,size = 1,prob = theta)
+
+df.trials = rbindlist(
+  lapply(seq(1000),function(rolls)  {
+    data.frame(rolls=rolls,prop=mean(rbinom(n = rolls,size = 1,prob = theta)))
+    })
+)
+
+ggplot(df.trials,aes(x=rolls,y=prop)) + geom_line() + geom_smooth()
+
+```
+
+### Exercise 4.3
+
+> [Purpose: To have you work through an example of the logic presented in Section 4.2.1.2.] Determine the exact probability of drawing a 10 from a shuffled pinochle deck. (In a pinochle deck, there are 48 cards. There are six values: 9, 10, Jack, Queen, King, Ace. There are two copies of each value in each of the standard four suits: hearts, diamonds, clubs, spades.) (A) What is the probability of getting a 10? (B) What is the probability of getting a 10 or Jack?
+
+```{r}
+
+# Getting a 10
+
+deck = rep(paste(c("H","D","C","S"),c("9","10","J","Q","K","A")),2)
+
+length(which(grepl("10",deck)))/length(deck)
+
+length(which(grepl("10|J",deck)))/length(deck)
+
+```
+
+
+### Exercise 4.4
+
+> [Purpose: To give you hands-on experience with a simple probability density function, in R and in calculus, and to reemphasize that density functions can have values larger than 1.] Consider a spinner with a [0,1] scale on its circumference. Suppose that the spinner is slanted or magnetized or bent in some way such that it is biased, and its probability density function is p(x) = 6x(1 − x) over the interval x ϵ [0,1]. (A) Adapt the program IntegralOfDensity.R to plot this density function and approximate its integral. Comment your code. Be careful to consider values of x only in the interval [0,1]. Hint: You can omit the first couple of lines regarding meanval and sdval, because those parameter values pertain only to the normal distribution. Then set xlow=0 and xhigh=1, and set dx to some small value. (B) Derive the exact integral using calculus. Hint: See the example, Equation 4.7. (C) Does this function satisfy Equation 4.3? (D) From inspecting the graph, what is the maximal value of p(x)?
+
+
+```{r}
+
+prob_dens_function = function(x) {
+  return(6*x*(1-x))
+}
+
+data.frame(x=seq(0,1,by=0.01)) %>% 
+  dplyr::mutate(prob=prob_dens_function(x)) %>% 
+  ggplot(.,aes(x=x,y=prob)) +
+  geom_line() +
+  geom_hline(yintercept = 1.5,color="red") +
+  geom_vline(xintercept = 0.5,color="red")
+
+library(stats)
+
+# Approx
+
+E_x = 6*(  (1/2*1^3-1/3*1^4)   )
+E_x
+
+# Integral
+stats::integrate(prob_dens_function,lower = 0,upper = 1)
+
+# Max density
+1.5
+
+```
+
+### Exercise 1.5
+
+> [Purpose: To have you use a normal curve to describe beliefs. It’s also handy to know the area under the normal curve between μ and σ.] 
+
+* (A) Adapt the code from IntegralOfDensity.R to determine (approximately) the probability mass under the normal curve from x = μ − σ to x = μ + σ. Comment your code. Hint: Just change xlow and xhigh appropriately, and change the text location so that the area still appears within the plot. 
+
+```{r}
+
+normal_prob_density = function(x,my = 0,sigma = 0.2) {
+  return(
+    (1/(sigma*sqrt(2*pi)))*exp(-1/2*((x-my)/(sigma))^2 )
+  )
+}
+
+my-sigma
+my+sigma
+
+ggplot(df.gaussian.prob_density,aes(x=x,y=prob_density)) +
+  geom_line() +
+  geom_hline(yintercept = 1,color="red") +
+  geom_vline(xintercept = my+sigma) +
+  geom_vline(xintercept = my-sigma)
+
+stats::integrate(normal_prob_density,lower = (my-sigma),upper = (my+sigma))
+
+```
+
+* (B) Now use the normal curve to describe the following belief. Suppose you believe that women’s heights follow a bell-shaped distribution, centered at 162 cm with about two-thirds of all women having heights between 147 and 177 cm. What should be the μ and σ parameter values?
+
+```{r}
+
+my = 162
+sigma = 177-my
+sigma
+
+```
+
+
+### Exercise 4.6
+
+> [Purpose: Recognize and work with the fact that Equation 4.9 can be solved for the joint probability, which will be crucial for developing Bayes' theorem.] School children were surveyed regarding their favorite foods. Of the total sample, 20% were 1st graders, 20% were 6th graders, and 60% were 11th graders. For each grade, the following table shows the proportion of respondents that chose each of three foods as their favorite: 
+
+* From that information, construct a table of joint probabilities of grade and favorite food. 
+* Also, say whether grade and favorite food are independent or not, and how you ascertained the answer. 
+
+Hint: You are given p(grade) and p(food|grade). You need to determine p(grade,food).
+
+
+```{r}
+
+df.grade_food = data.frame(matrix(c(0.3,0.6,0.3,0.6,0.3,0.1,0.1,0.1,0.6),nrow = 3,ncol = 3)) # p(food|grade)
+
+colnames(df.grade_food) = c("Ice cream","Fruit","French Fries")
+rownames(df.grade_food) = c("1st","6th","11th")
+
+df.grade_food
+
+p_1st = 0.2 #p_grade
+p_6th = 0.2 #p_grade
+p_11th = 0.6 #p_grade
+
+df.grade_food$Marginal_Grade = c(p_1st,p_6th,p_11th)
+
+df.grade_food
+ 
+df.grade_food = df.grade_food[,c(1:3)] * df.grade_food$Marginal_Grade # p(food,grade) = p(food|grade) * p(grade)
+df.grade_food
+
+# Independence
+
+df.grade_food[1,1] 
+p_1st * sum(df.grade_food[,1]) # Not independent
+
+```
+
+
+
+
+
+
+
+
+
+
+
+<!--chapter:end:Chapters/Chapter-04.Rmd-->
+
+---
+title: "Chapter 5"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,scipen=999)
+options(scipen=999)
+```
+
+# Chapter 5: Bayes' rule
+
+> Bayes' rule is merely the mathematical relation between the prior allocation of credibility and the posterior reallocation of credibility conditional on data.
+
+*There is another branch of statistics, called frequentist, which does not use Bayes' rule for inference and decisions.*
+
+## 5.1.1 Derived from definitions of conditional probability
+
+![](images/5_1.png)
+
+![](images/5_2.png)
+
+In words, the definition simply says that the probability of c given r is the probability that *they happen together* **relative to** *the probability that r happens at all*.
+
+> E.g.: **P of blond hair WHEN having blue eyes** = **P of blue eyes AND blond hair** relative to **P of blue eyes at all**
+
+![](images/5_3.png)
+
+> E.g.: **P of blond hair WHEN having blue eyes** = **P of blue eyes when blond hair * P of blond hair**  relative to **P of blue eyes at all**
+
+```{r}
+
+library(datasets)
+data(HairEyeColor)
+
+HairEyeColor.male = t(HairEyeColor[,,"Male"])
+
+HairEyeColor.male.prop = prop.table(HairEyeColor.male)
+
+HairEyeColor.male.prop.matrix = 
+  as.data.frame(matrix(HairEyeColor.male.prop,ncol=4,nrow=4))
+
+colnames(HairEyeColor.male.prop.matrix) = c("Black","Brunette","Red","Blond")
+rownames(HairEyeColor.male.prop.matrix) = c("Brown","Blue","Hazel","Green")
+
+HairEyeColor.male.prop.matrix$Marginal_Eye = as.numeric(rowSums(HairEyeColor.male.prop.matrix))
+HairEyeColor.male.prop.matrix = as.data.frame(t(HairEyeColor.male.prop.matrix))
+
+HairEyeColor.male.prop.matrix$Marginal_Hair= as.numeric(rowSums(HairEyeColor.male.prop.matrix))
+HairEyeColor.male.prop.matrix = as.data.frame(t(HairEyeColor.male.prop.matrix))
+
+HairEyeColor.male.prop.matrix
+```
+
+**Example** If blue eyes, then p of hair color?
+
+```{r}
+
+###################
+### One:
+
+# p(r|c) = p(r,c)/p(r)
+# => p(blond hair|blue eyes) = p(blond hair AND blue eyes) / p(blue eyes)
+
+HairEyeColor.male.prop.matrix[2,]
+
+# p(blue eyes)
+HairEyeColor.male.prop.matrix$Marginal_Eye[2]
+
+# p(blond hair AND blue eyes)
+HairEyeColor.male.prop.matrix[2,4]
+
+## p(Hair_color|blue eyes):
+HairEyeColor.male.prop.matrix[2,c(1:4)] / HairEyeColor.male.prop.matrix$Marginal_Eye[2]
+
+```
+
+### Example of joint probability p(r|c)*p(c)
+
+**Disease**
+Rare disease with p(theta=disease) = 0.001.
+
+**Test**
+Test with sensitivity of 99%. Denote a positive test as T = +, negative test is T = -
+
+`p(T=+|theta=disease) = 0.99` 
+
+Test has a false alarm rate of 5%
+
+`p(T=+|theta=no_disease) = 0.05`
+
+What if a person is drawn and the test is positive?
+
+`p(theta = disease|T=+)`
+
+
+```{r}
+
+# P(D) = 0.001
+# P(nD) = 0.999
+
+#     | +               | -                   |
+#     _________________________________________
+# D   | 0.99*0.001      | 0.05*(1-0.99)       |
+# nD  | (1-0.99)*0.001  | (1-0.05)*(1-0.001)  |
+#     _________________________________________
+
+
+#     | +               | -                   |
+#     _________________________________________
+# D   | 0.00099         | 5e-04               |
+# nD  | 1e-05           | 0.94905             |
+#     _________________________________________
+
+0.99*0.001/(0.99*0.001+0.05*(1-0.001))
+
+```
+
+## 5.2 Applied to parameters and data
+
+The key application that makes Bayes' rule so useful is when the row variable represents data values and the column variable represents parameter values. 
+A model of data specifies the probability of particular data values given the model’s structure and parameter values. 
+
+The model also indicates the probability of the various parameter values. 
+
+In other words, a model specifies and we use Bayes' rule to convert that to what we really want to know, which is how strongly we should believe in the various parameter values, given the data:
+
+`p(parameters values | data values)` 
+
+![](images/5_7.png)
+
+## 5.3 Complete examples:
+
+> When I refer to the “bias” in a coin, I will sometimes be referring to its underlying probability of coming up heads.
+
+Thus, when a coin is fair, it has a “bias” of 0.50.
+Bias is denoted as `theta`.
+
+* We will denote the outcome of a flip as y. 
+
+y = 1 when heads, y = 0 when tails
+
+* The next step in Bayesian data analysis is creating a descriptive model with meaningful parameters.
+
+p(y = 1) of heads: `p(y=1 | theta) = theta`
+p(y = 0) of tails: `p(y=0 | theta) = 1-theta`
+Combined: `p(y|theta) = theta^y * (1-theta)^(1-y)` (**Bernoulli distribution**)
+
+* The next steps of Bayesian data analysis (recall Section 2.3, p. 25) are collecting the data and applying Bayes' rule to re-allocate credibility across the possible parameter values.
+
+The posterior is a compromise between the prior distribution and the likelihood function.
+
+```{r}
+
+source("DBDA2Eprograms/DBDA2E-utilities.R")
+source("DBDA2Eprograms/BernGrid.R")
+
+Theta = seq(0, 1, length=1001) # Specify fine comb for Theta.
+head(Theta)
+hist(Theta)
+
+pTheta = pmin(Theta, 1-Theta) # Triangular shape for pTheta.
+head(pTheta)
+hist(pTheta)
+
+pTheta = pTheta/sum(pTheta) # Make pTheta sum to 1.0
+head(pTheta)
+hist(pTheta)
+
+Data = c(rep(0,3),rep(1,1)) # Same as c(0,0,0,1). 25% heads with N=4.
+head(Data)
+
+posterior = BernGrid(Theta, 
+                     pTheta, 
+                     Data, 
+                     plotType="Bars",
+                     showCentTend="Mode",
+                     showHDI=TRUE,
+                     showpD=FALSE)
+# saveGraph(file="BernGridExample",type="jpg")
+
+head(posterior)
+
+
+```
+
+### Drill down example
+
+```{r}
+
+###########################
+### ARGUMENTS
+Theta = seq(0, 1, length=1001) 
+
+pTheta = pmin(Theta, 1-Theta) 
+pTheta = pTheta/sum(pTheta)
+
+Data = rbinom(n = 7,1,0.8)
+
+### END ARGUMENTS
+###########################
+
+  # Create summary values of Data
+  z = sum( Data ) # number of 1's in Data
+  z
+  N = length( Data ) 
+  N
+  
+  # Compute the Bernoulli likelihood at each value of Theta:
+  pDataGivenTheta = Theta^z * (1-Theta)^(N-z)
+  
+  head(Theta)
+  head(pDataGivenTheta)
+  # Compute the evidence and the posterior via Bayes' rule:
+  pData = sum( pDataGivenTheta * pTheta )
+  head(pData)
+  pThetaGivenData = pDataGivenTheta * pTheta / pData
+  head(pThetaGivenData)
+  
+  # Plot the results.
+  layout( matrix( c( 1,2,3 ) ,nrow=3 ,ncol=1 ,byrow=FALSE ) ) # 3x1 panels
+  par( mar=c(3,3,1,0) , mgp=c(2,0.7,0) , mai=c(0.5,0.5,0.3,0.1) ) # margins
+  cexAxis = 1.33
+  cexLab = 1.75
+  # convert plotType to notation used by plot:
+  plotType="h" 
+  dotsize = 5 # how big to make the plotted dots
+  barsize = 5 # how wide to make the bar lines    
+  # If the comb has a zillion teeth, it's too many to plot, so plot only a
+  # thinned out subset of the teeth.
+  nteeth = length(Theta)
+  thinIdx = 1:nteeth 
+  
+
+  # Plot the prior.
+  yLim = c(0,1.1*max(c(pTheta,pThetaGivenData)))
+  plot( Theta[thinIdx] , pTheta[thinIdx] , type=plotType , 
+        pch="." , cex=dotsize , lwd=barsize ,
+        xlim=c(0,1) , ylim=yLim , cex.axis=cexAxis ,
+        xlab=bquote(theta) , ylab=bquote(p(theta)) , cex.lab=cexLab ,
+        main="Prior" , cex.main=1.5 , col="skyblue" )
+  # Plot the likelihood: p(Data|Theta)
+  plot( Theta[thinIdx] , pDataGivenTheta[thinIdx] , type=plotType , 
+        pch="." , cex=dotsize , lwd=barsize ,
+        xlim=c(0,1) , ylim=c(0,1.1*max(pDataGivenTheta)) , cex.axis=cexAxis ,
+        xlab=bquote(theta) , ylab=bquote( "p(D|" * theta * ")" ) , cex.lab=cexLab ,
+        main="Likelihood" , cex.main=1.5 , col="skyblue" )
+  # Plot the posterior.
+  yLim = c(0,1.1*max(c(pTheta,pThetaGivenData)))
+  plot( Theta[thinIdx] , pThetaGivenData[thinIdx] , type=plotType , 
+        pch="." , cex=dotsize , lwd=barsize ,
+        xlim=c(0,1) , ylim=yLim , cex.axis=cexAxis ,
+        xlab=bquote(theta) , ylab=bquote( "p(" * theta * "|D)" ) , cex.lab=cexLab ,
+        main="Posterior" , cex.main=1.5 , col="skyblue" )
+  
+
+```
+
+## Markov chain Monte Carlo (MCMC) methods.
+
+> Involves randomly sampling a large number of representative combinations of parameter values from the posterior distribution.
+
+What makes these methods so useful is that they can generate representative parameter-value combinations from the posterior distribution of complex models without computing the integral in Bayes' rule. 
+
+It is the development of these MCMC methods that has allowed Bayesian statistical methods to gain practical use. This book focuses on MCMC methods for realistic data analysis.
+
+## Exercises
+
+### Exercise 5.1
+
+> [Purpose: Iterative application of Bayes' rule, and seeing how posterior probabilities change with inclusion of more data.] This exercise extends the ideas of Table 5.4, so at this time, please review Table 5.4 and its discussion in the text. Suppose that the same randomly selected person as in Table 5.4 gets re-tested after the first test result was positive, and on the re-test, the result is negative. When taking into account the results of both tests, what is the probability that the person has the disease? Hint: For the prior probability of the re-test, use the posterior computed from the Table 5.4. etain as many decimal places as possible, as rounding can have a surprisingly big effect on the results. One way to avoid unnecessary rounding is to do the calculations in .
+
+```{r}
+
+p_prior = 0.99*0.001/(0.99*0.001+0.05*(1-0.001))
+p_prior
+
+(1-0.99)*p_prior/((1-0.99)*p_prior+(1-0.05)*(1-p_prior))
+```
+
+### Exercise 5.2
+
+> [Purpose: Getting an intuition for the previous results by using “natural frequency” and “Markov” representations]
+
+> (A) Suppose that the population consists of 100,000 people. Compute how many people would be expected to fall into each cell of Table 5.4. To compute the expected frequency of people in a cell, just multiply the cell probability by the size of the population. To get you started, a few of the cells of the frequency table are filled in here: Notice the frequencies on the lower margin of the table. They indicate that out of 100,000 people, only 100 have the disease, while 99,900 do not have the disease. These marginal frequencies instantiate the prior probability that p(θ =) = 0.001. Notice also the cell frequencies in the column θ =, which indicate that of 100 people with the disease, 99 have a positive test result and 1 has a negative test result. These cell frequencies instantiate the hit rate of 0.99. Your job for this part of the exercise is to fill in the frequencies of the remaining cells of the table. 
+
+```{r}
+
+df.5_4 = 
+  data.frame(matrix(c(0.99*0.001,(1-0.99)*0.001,0.05*(1-0.001),(1-0.05)*(1-0.001)),ncol=2,nrow=2))
+rownames(df.5_4) = c("T+","T-")
+colnames(df.5_4) = c("D","nD")
+df.5_4
+
+n = 100000
+df.5_4*n
+```
+
+
+
+> (B) Take a good look at the frequencies in the table you just computed for the previous part. These are the so-called “natural frequencies” of the events, as opposed to the somewhat unintuitive expression in terms of conditional probabilities (Gigerenzer & Hoffrage, 1995). From the cell frequencies alone, determine the proportion of people who have the disease, given that their test result is positive. Before computing the exact answer arithmetically, first give a rough intuitive answer merely by looking at the relative frequencies in the row D = +. Does your intuitive answer match the intuitive answer you provided when originally reading about Table 5.4? Probably not. Your intuitive answer here is probably much closer to the correct answer. Now compute the exact answer arithmetically. It should match the result from applying Bayes' rule in Table 5.4. 
+
+```{r}
+99/5094
+```
+
+> (C) Now we’ll consider a related representation of the probabilities in terms of natural frequencies, which is especially useful when we accumulate more data. This type of representation is called a “Markov” representation by Krauss, Martignon, and Hoffrage (1999). Suppose now we start with a population of N = 10,000,000 people. We expect 99.9% of them (i.e., 9,990,000) not to have the disease, and just 0.1% (i.e., 10,000) to have the disease. Now consider how many people we expect to test positive. Of the 10,000 people who have the disease, 99%, (i.e., 9,900) will be expected to test positive. Of the 9,990,000 people who do not have the disease, 5% (i.e., 499,500) will be expected to test positive. Now consider re-testing everyone who has tested positive on the first test. How many of them are expected to show a negative result on the retest? Use this diagram to compute your answer: When computing the frequencies for the empty boxes above, be careful to use the proper conditional probabilities! 
+
+
+```{r}
+# 10,000,000 => 10,000 test positive => re test
+df.5_4 = 
+  data.frame(matrix(c(0.001*0.99,
+                      0.001*(1-0.99),
+                      0.999*0.05,
+                      0.999*(1-0.05)),
+                    ncol=2,
+                    nrow=2))
+rownames(df.5_4) = c("T+","T-")
+colnames(df.5_4) = c("D","nD")
+df.5_4
+
+n = 10000000
+df.5_4.n = df.5_4*n
+df.5_4.n
+```
+
+
+```{r}
+# Left branch
+sum(df.5_4.n[,1]) * 0.99
+df.5_4.n[1,1] * (1 - 0.99)
+
+# Right branch
+sum(df.5_4.n[,2]) * 0.05
+df.5_4.n[1,2] * (1 - 0.05)
+
+```
+
+> (D) Use the diagram in the previous part to answer this: What proportion of people, who test positive at first and then negative on retest, actually have the disease? In other words, of the total number of people at the bottom of the diagram in the previous part (those are the people who tested positive then negative), what proportion of them are in the left branch of the tree? How does the result compare with your answer to Exercise 5.1?
+
+```{r}
+
+99 / (99 + 474525)
+
+# Exercise 1
+
+(1-0.001)*p_prior/((1-0.001)*p_prior+(1-0.05)*(1-p_prior))
+```
+
+### Exercise 5.3
+
+> [Purpose: To see a hands-on example of data-order invariance.] Consider again the disease and diagnostic test of the previous two exercises. 
+> (A)Suppose that a person selected at random from the population gets the test and it comes back negative. Compute the probability that the person has the disease. 
+
+```{r}
+
+df.5_4
+
+pPositiveDisease = 0.99
+pPositiveNoDisease = 0.05
+pDisease = 0.001
+
+# Negative
+pDiseaseNoNegative = ( (1-pPositiveDisease) * pDisease / ( (1 - pPositiveDisease) * pDisease + (1-pPositiveNoDisease) * (1-pDisease) ) ) 
+pDiseaseNoNegative
+
+
+```
+
+
+>(B) The person then gets re-tested, and on the second test the result is positive. Compute the probability that the person has the disease. How does the result compare with your answer to Exercise 5.1?
+
+```{r}
+
+# Negative -> Positive
+pDiseaseNew = pDiseaseNoNegative
+( (pPositiveDisease) * pDiseaseNew / ( (pPositiveDisease) * pDiseaseNew + (pPositiveNoDisease) * (1-pDiseaseNew) ) ) 
+
+
+```
+
+
+### Exercise 5.4
+
+> [Purpose: To gain intuition about Bayesian updating by using BernGrid.] Open the program BernGridExample.R. You will notice there are several examples of using the function BernGrid. un the script. For each example, include the  code and the resulting graphic and explain what idea the example illustrates. Hints: Look back at Figures 5.2 and 5.3, and look ahead to Figure 6.5. Two of the examples involve a single flip, with the only difference between the examples being whether the prior is uniform or contains only two extreme options. The point of those two examples is to show that a single datum implies little when the prior is vague, but a single datum can have strong implications when the prior allows only two very different possibilities.
+
+```{r}
+
+
+Theta = seq( 0 , 1 , length=5 )  # Sparse teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,0),rep(1,1))      # Single flip with 1 head
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="None" , showHDI=FALSE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=11 )  # Sparse teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,0),rep(1,1))      # Single flip with 1 head
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="None" , showHDI=FALSE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1001 ) # Fine teeth for Theta.
+pTheta = rep(1,length(Theta))      # Uniform (horizontal) shape for pTheta.
+pTheta = pTheta/sum(pTheta)        # Make pTheta sum to 1.0
+Data = c(rep(0,0),rep(1,1))        # Single flip with 1 head
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="None" , showHDI=FALSE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1001 ) # Fine teeth for Theta.
+pTheta = rep(0,length(Theta))      # Only extremes are possible!
+pTheta[2] = 1                      # Only extremes are possible!
+pTheta[length(pTheta)-1] = 1
+pTheta = pTheta/sum(pTheta)        # Make pTheta sum to 1.0
+Data = c(rep(0,0),rep(1,1))        # Single flip with 1 head
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="None" , showHDI=FALSE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+
+
+Theta = seq( 0 , 1 , length=1001 )  # Fine teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,3),rep(1,1))      # 25% heads, N=4
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="Mode" , showHDI=TRUE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1001 )  # Fine teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+pTheta = pTheta^10               # Sharpen pTheta !
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,3),rep(1,1))      # 25% heads, N=4
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="Mode" , showHDI=TRUE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1001 )  # Fine teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+pTheta = pTheta^0.1              # Flatten pTheta !
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,3),rep(1,1))      # 25% heads, N=4
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="Mode" , showHDI=TRUE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+
+Theta = seq( 0 , 1 , length=1001 )  # Fine teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,30),rep(1,10))    # 25% heads, N=40
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="Mode" , showHDI=TRUE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1001 )  # Fine teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+pTheta = pTheta^10               # Sharpen pTheta !
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,30),rep(1,10))    # 25% heads, N=40
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="Mode" , showHDI=TRUE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1001 )  # Fine teeth for Theta.
+pTheta = pmin( Theta , 1-Theta ) # Triangular shape for pTheta.
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+pTheta = pTheta^0.1              # Flatten pTheta !
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,30),rep(1,10))    # 25% heads, N=40
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="Mode" , showHDI=TRUE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+Theta = seq( 0 , 1 , length=1000 )  # Fine teeth for Theta.
+# Two triangular peaks on a small non-zero floor:
+pTheta = c( rep(1,200),seq(1,100,length=50),seq(100,1,length=50),rep(1,200) ,
+            rep(1,200),seq(1,100,length=50),seq(100,1,length=50),rep(1,200) )
+pTheta = pTheta/sum(pTheta)      # Make pTheta sum to 1.0
+Data = c(rep(0,13),rep(1,14))
+
+openGraph(width=5,height=7)
+posterior = BernGrid( Theta, pTheta , Data , plotType="Bars" ,
+                      showCentTend="None" , showHDI=FALSE , showpD=FALSE )
+
+#------------------------------------------------------------------------------
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--chapter:end:Chapters/Chapter-05.Rmd-->
+
+---
+title: "Chapter 6"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 6
+
+<!--chapter:end:Chapters/Chapter-06.Rmd-->
+
+---
+title: "Chapter 7"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 7
+
+<!--chapter:end:Chapters/Chapter-07.Rmd-->
+
+---
+title: "Chapter 8"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 8
+
+<!--chapter:end:Chapters/Chapter-08.Rmd-->
+
+---
+title: "Chapter 9"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 9
+
+<!--chapter:end:Chapters/Chapter-09.Rmd-->
+
+---
+title: "Chapter 10"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 10
+
+<!--chapter:end:Chapters/Chapter-10.Rmd-->
+
+---
+title: "Chapter 11"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 11
+
+<!--chapter:end:Chapters/Chapter-11.Rmd-->
+
+---
+title: "Chapter 12"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 12
+
+<!--chapter:end:Chapters/Chapter-12.Rmd-->
+
+---
+title: "Chapter 13"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 13
+
+<!--chapter:end:Chapters/Chapter-13.Rmd-->
+
+---
+title: "Chapter 14"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 14
+
+<!--chapter:end:Chapters/Chapter-14.Rmd-->
+
+---
+title: "Chapter 15"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 15
+
+<!--chapter:end:Chapters/Chapter-15.Rmd-->
+
+---
+title: "Chapter 16"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 16
+
+<!--chapter:end:Chapters/Chapter-16.Rmd-->
+
+---
+title: "Chapter 17"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 17
+
+<!--chapter:end:Chapters/Chapter-17.Rmd-->
+
+---
+title: "Chapter 18"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 18
+
+<!--chapter:end:Chapters/Chapter-18.Rmd-->
+
+---
+title: "Chapter 19"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 19
+
+<!--chapter:end:Chapters/Chapter-19.Rmd-->
+
+---
+title: "Chapter 20"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 20
+
+<!--chapter:end:Chapters/Chapter-20.Rmd-->
+
+---
+title: "Chapter 21"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 21
+
+<!--chapter:end:Chapters/Chapter-21.Rmd-->
+
+---
+title: "Chapter 22"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 22
+
+<!--chapter:end:Chapters/Chapter-22.Rmd-->
+
+---
+title: "Chapter 23"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 23
+
+<!--chapter:end:Chapters/Chapter-23.Rmd-->
+
+---
+title: "Chapter 24"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 24
+
+<!--chapter:end:Chapters/Chapter-24.Rmd-->
+
+---
+title: "Chapter 25"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 25
+
+<!--chapter:end:Chapters/Chapter-25.Rmd-->
+

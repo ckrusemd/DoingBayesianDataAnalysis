@@ -9,3 +9,5 @@ _book/
 *.html
 
 Chapters/DBDA2Eprograms/
+
+*.eps
