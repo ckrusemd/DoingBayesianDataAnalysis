@@ -7,4 +7,216 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Chapter 7
+# Markov Chain Monte Carlo
+
+Although we have, so far, only been dealing with models involving a single parameter, it is much more typical, as we will see in later chapters, to have models involving several parameters.
+
+What the method produces for us is an approximation of the posterior distribution, p(θ|D), in the form of a large number of θ values sampled from that distribution. 
+
+This heap of representative θ values can be used to estimate the central tendency of the posterior, its highest density interval (HDI), etc. 
+
+The posterior distribution is estimated by randomly generating a lot of values from it, and therefore, by analogy to the random events at games in a casino, this approach is called a Monte Carlo method.
+
+
+## 7.2.1 A politician stumbles upon the Metropolis algorithm
+
+
+At the end of a grueling day of photo opportunities and fundraising,2 he has to decide whether to 
+
+* (i) stay on the current island, 
+
+* (ii) move to the adjacent island to the west, or 
+
+* (iii) move to the adjacent island to the east. 
+
+His goal is to visit all the islands proportionally to their relative population, so that he spends the most time on the most populated islands, and proportionally less time on the less populated islands.
+
+The politician has a simple heuristic for deciding whether to travel to the proposed island: 
+
+* First, he flips a (fair) coin to decide whether to propose the adjacent island to the east or the adjacent island to the west. 
+
+* If the proposed island has a larger population than the current island, then he definitely goes to the proposed island. 
+
+* On the other hand, if the proposed island has a smaller population than the current island, then he goes to the proposed island only probabilistically, to the extent that the proposed island has a population as big as the current island. 
+
+* If the population of the proposed island is only half as big as the current island, the probability of going there is only 50%.
+
+
+In more detail, denote the population of the proposed island as Pproposed, and the population of the current island as Pcurrent. Then he moves to the less populated island with probability pmove=Pproposed/Pcurrent.
+
+What’s amazing about this heuristic is that it works: 
+
+> In the long run, the probability that the politician is on any one of the islands exactly matches the relative population of the island!
+
+
+```{r}
+
+Pproposed = 65456
+Pcurrent = 65742
+
+pmove=Pproposed/Pcurrent
+pmove
+
+```
+
+### 7.2.2 A random walk
+
+Suppose that there are seven islands in the chain, with relative populations as shown in the bottom panel of Figure 7.2. 
+
+The islands are indexed by the value θ, whereby the leftmost, western island is θ = 1 and the rightmost, eastern island is θ = 7. 
+
+The relative populations of the islands increase linearly such that P(θ) = θ. Notice that uppercase P( ) refers to the relative population of the island, not its absolute population and not its probability mass. 
+
+To complete your mental picture, you can imagine islands to the left of 1 and to the right of 7 that have populations of zero.
+
+> The range of possible proposed moves, and the probability of proposing each, is called the **proposal distribution**. In the present algorithm, the proposal distribution is very simple: It has only two values with 50-50 probabilities.
+
+
+```{r}
+
+theta_1 = 1
+theta_2 = 2
+theta_3 = 3
+theta_4 = 4
+theta_5 = 5
+theta_6 = 6
+theta_7 = 7
+
+## Politician starts at theta_4 island.
+proposed_walk = ifelse(runif(1,0,1)>0.5,"Right","Left")
+proposed_walk
+
+next_theta = ifelse(proposed_walk=="Left",theta_3,theta_5)
+next_theta
+
+prop_move = next_theta/theta_4
+prop_move
+
+will_move = prop_move > runif(1,0,1)
+will_move
+
+```
+
+Notice what we must be able to do in the random-walk process: 
+
+* We must be able to generate a random value from the proposal distribution, to create θproposed. 
+
+* We must be able to evaluate the target distribution at any proposed position, to compute P(θproposed)/P(θcurrent).
+
+* We must be able to generate a random value from a uniform distribution, to accept or reject the proposal according to pmove.
+
+
+## 7.4 Toward gibbs sampling: Estimating two coin biases
+
+The Metropolis method is very useful, but it can be inefficient. Other methods can be more efficient in some situations. 
+
+In particular, another type of sampling method that can be very efficient is Gibbs sampling.
+
+### Example 1
+
+For example, suppose we have a sample of 97 people suffering from a disease. 
+
+* We give a random subset of them a promising drug
+* and we give the others a placebo.
+
+After 1 week, 12 of the 51 drug-treated people have gotten better, and 5 of the 46 placebo-treated people have gotten better. Did the drug actually work better than the placebo, and by how much? 
+
+In other words, based on the observed difference in proportions, 12/51 versus 5/46, what underlying differences are actually credible?
+
+### Example 2
+
+As another example, suppose you want to find out if mood affects cognitive performance. You manipulate mood by having 83 people sit through mood-inducing movies. 
+
+* A random subset of your participants is shown a bittersweet film about lovers separated by circumstances of war but who never forget each other. 
+* The other participants are shown a light comedy about high school pranks.
+
+Immediately after seeing the film, all participants are given some cognitive tasks, including an arithmetic problem involving long division. 
+
+Of the 42 people who saw the war movie, 32 correctly solved the long division problem. Of the 41 people who saw the comedy, 27 correctly solved the long division problem. Did the induced mood actually affect cognitive performance? 
+
+In other words, based on the observed difference in proportions, 32/42 versus 27/41, what underlying differences are actually credible?
+
+## Assumptions
+
+> Typically, we design research to make sure that the assumption of independence holds. In the examples above, we assumed independence in the disease-treatment scenario because we assumed that social interaction among the patients was minimal.
+
+## 7.4.4 Gibbs sampling
+
+The Metropolis algorithm is very general and broadly applicable. 
+
+One problem with it, however, is that the proposal distribution must be properly tuned to the posterior distribution if the algorithm is to work well. 
+
+If the proposal distribution is too narrow or too broad, a large proportion of proposed jumps will be rejected and the trajectory will get bogged down in a localized region of the parameter space. 
+
+Even at its most efficient, the effective size of the chain is far less than the number of proposed jumps. It would be nice, therefore, if we had another method of sample generation that was more efficient. 
+
+Gibbs sampling is one such method.
+
+### Procedure
+
+* The procedure for Gibbs sampling is a type of random walk through parameter space, like the Metropolis algorithm. 
+
+* The walk starts at some arbitrary point, and at each point in the walk, the next step depends only on the current position, and on no previous positions. What is different about Gibbs sampling, relative to the Metropolis algorithm, is how each step is taken. 
+
+* At each point in the walk, one of the component parameters is selected. 
+
+* The component parameter could be selected at random, but typically the parameters are cycled through, in order: θ1, θ2, θ3,…, θ1, θ2, θ3,…. 
+
+* The reason that parameters are cycled rather than selected randomly is that for complex models with many dozens or hundreds of parameters, it would take too many steps to visit every parameter by random chance alone, even though they would be visited about equally often in the long run.
+
+* Suppose that parameter θi has been selected. 
+
+* Gibbs sampling then chooses a new value for that parameter by generating a random value directly from the conditional probability distribution p(θi|{θj≠i}, D. 
+
+* The new value for θi, combined with the unchanged values of θj≠i, constitutes the new position in the random walk. 
+
+* The process then repeats: Select a component parameter and select a new value for that parameter from its conditional posterior distribution.
+
+If we do that enough, we will have many vertical slices, each representing the posterior distribution along that slice. We can use those vertical slices to represent the posterior, if we have also lingered in each slice proportionally to the posterior probability of being in that slice!
+
+But there is one other disadvantage of Gibbs sampling. Because it only changes one parameter value at a time, its progress can be stalled by highly correlated parameters.
+
+## 7.4.6 Terminology: MCMC
+
+Any simulation that samples a lot of random values from a distribution is called a Monte Carlo simulation, named after the dice and spinners and shufflings of the famous casino locale.
+
+**The Metropolis algorithm** and **Gibbs sampling** are specific types of Monte Carlo process.
+
+## 7.5 Mcmc representativeness, accuracy, and efficiency
+
+We have three main goals in generating an MCMC sample from the posterior distribution: 
+
+> * 1. The values in the chain must be representative of the posterior distribution. They should not be unduly influenced by the arbitrary initial value of the chain, and they should fully explore the range of the posterior distribution without getting stuck. 
+
+Current practice often focuses on two methods: visual examination of the trajectory, and consideration of a numerical description of convergence.
+
+A graph of the sampled parameter values as a function of step in the chain is called **a trace plot**.
+
+The preliminary steps, during which the chain moves from its unrepresentative initial value to the modal region of the posterior, is called **the burn-in period**.
+
+
+> * 2. The chain should be of sufficient size so that estimates are accurate and stable. In particular, the estimates of the central tendency (such as median or mode), and the limits of the 95% HDI, should not be much different if the MCMC analysis is run again (using different seed states for the pseudorandom number generators). 
+
+One popular numerical check is a measure of how much variance there is between chains relative to how much variance there is within chains.
+
+The specific numerical measure is called the Gelman-Rubin statistic (Gelman & Rubin, 1992), or the Brooks-Gelman-Rubin statistic (Brooks & Gelman, 1998), or the **“potential scale reduction factor,”** or simply the **“shrink factor”** as plotted in Figures 7.10 and 7.11.
+
+Intuitively, its value is 1.0 if the chains are fully converged, but its value is larger than 1.0 if there are orphaned or stuck chains.
+
+> * 3. The chain should be generated efficiently, with as few steps as possible, so not to exceed our patience or computing power.
+
+## 7.5.2 MCMC accuracy
+
+Here is a recapitulation regarding accuracy and stability of MCMC results. Visual inspection of the `trace plots` and `density plots`, and the `Gelman-Rubin statistic`, can suggest whether the **burn-in period** has been suitably passed.
+Second, those indicators can also suggest whether or not the chains are well mixed and representative of the posterior. 
+Remember, the diagnostics logically can only probabilistically indicate violations of representativeness and cannot guarantee representativeness. 
+
+Next, the measures of `ESS` and `MCSE` suggest how stable and accurate the chain is. As a heuristic, if you want reasonable stability in the estimates of the limits of the 95% HDI, an ESS of (at least) 10,000 is desirable. If you want a particular accuracy in the estimate of the posterior mean, consult the MCSE, which is interpreted on the scale of the parameter.
+
+
+## Exercises
+
+TODO: Could not get the script to work in markdown
+
+
+
