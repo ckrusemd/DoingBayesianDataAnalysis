@@ -7,4 +7,275 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Chapter 6
+# Chapter 6: Inferring a Binomial Probability via Exact Mathematical Analysis
+
+## 6.1 The likelihood function: Bernoulli distribution
+
+Bernoulli distribution:
+
+> probability distribution over the two discrete values of y, for any fixed value of θ.
+> The sum of the probabilities is 1,
+
+![](images/6_1.png)
+
+`p(y = 1|theta) = theta`
+
+## 6.2 A description of credibilities: The beta distribution
+
+To express the prior beliefs over θ, we seek a probability density function involving θ^a(1 ‒ θ)^b.
+
+## 6.2.1 Specifying a beta prior
+
+### Dice roll
+
+```{r}
+
+p = seq(0,1,length=100)
+plot(p, dbeta(p, 1, 1), ylab="density", type ="l", col=4,ylim = c(0,20))
+lines(p, dbeta(p, 2, 2), ylab="density", type ="l", col=1)
+lines(p, dbeta(p, 5, 5), ylab="density", type ="l", col=2)
+lines(p, dbeta(p, 10, 10), ylab="density", type ="l", col=3)
+lines(p, dbeta(p, 100, 100), ylab="density", type ="l", col=5)
+
+# Mode
+100/(100+100)
+
+# Kappa
+100+100 # bigger kappa, narrower
+```
+
+### Left handed
+
+```{r}
+
+p = seq(0,1,length=100)
+plot(p, dbeta(p, 1, 8), ylab="density", type ="l", col=4,ylim = c(0,40))
+lines(p, dbeta(p, 2, 16), ylab="density", type ="l", col=1)
+lines(p, dbeta(p, 5, 45), ylab="density", type ="l", col=2)
+lines(p, dbeta(p, 10, 90), ylab="density", type ="l", col=3)
+lines(p, dbeta(p, 100, 900), ylab="density", type ="l", col=5)
+
+# Mode
+100/(100+900)
+
+# Kappa
+100+900 # bigger kappa, narrower
+
+```
+
+## 6.3 The posterior beta
+
+> The posterior distribution is always a compromise between the prior distribution and the likelihood function.
+
+> Posterior = data x weight + prior x weight
+
+## Exercises
+
+### 6.1
+
+> [Purpose: For you to see the influence of the prior in each successive flip, and for you to see another demonstration that the posterioris invariant under re-orderings of the data.]
+
+For this exercise, use the  function explained in Section 6.6 (BernBeta.R). (Don’t forget to source the function before calling it.) Notice that the function returns the posterior beta values each time it is called, so you can use the returned values as the prior values for the next function call. 
+
+(A) Start with a prior distribution that expresses some uncertainty that a coin is fair: beta(θ|4, 4). Flip the coin once; suppose we get a head. What is the posterior distribution? 
+
+```{r}
+
+source("Chapters/DBDA2Eprograms/DBDA2E-utilities.R")
+source("Chapters/DBDA2Eprograms/BernBeta.R")
+
+# Specify the prior:
+a = 4   # Convert to beta shape parameter a.
+b = 4 # Convert to beta shape parameter b.
+
+N = 1   # The total number of flips,
+z = 1   # The number of heads.
+Data = c(rep(0,N-z),rep(1,z))
+
+
+BernBeta(priorBetaAB = c(a,b),Data = Data)
+
+
+### Function breakdown
+# a = priorBetaAB[1]
+# b = priorBetaAB[2]
+
+# Create summary values of Data:
+z = sum( Data ) # number of 1's in Data
+N = length( Data ) 
+
+Theta = seq(0.001,0.999,by=0.001) # points for plotting
+pTheta = dbeta( Theta , a , b ) # prior for plotting
+a+z
+b+N-z
+pThetaGivenData = dbeta( Theta , a+z , b+N-z ) # posterior for plotting
+pDataGivenTheta = Theta^z * (1-Theta)^(N-z) # likelihood for plotting
+
+# Compute the evidence for optional display:
+#pData = beta(z+a,N-z+b) / beta(a,b)  # underflow errors for large a,b
+pData = exp( lbeta(z+a,N-z+b) - lbeta(a,b) )
+
+
+```
+
+
+(B) Use the posterior from the previous flip as the prior for the next flip. Suppose we flip again and get a head. Now what is the new posterior?
+(Hint: If you type post = BernBeta(c(4,4), c(1)) for the first part, then you can type post = BernBeta(post, c(1)) for the next part.) 
+
+```{r}
+
+# Specify the prior:
+a = 5   # Convert to beta shape parameter a.
+b = 4 # Convert to beta shape parameter b.
+
+N = 1   # The total number of flips,
+z = 1   # The number of heads.
+Data = c(rep(0,N-z),rep(1,z))
+
+
+BernBeta(priorBetaAB = c(a,b),Data = Data)
+
+
+```
+
+
+(C) Using that posterior as the prior for the next flip, flip a third time and get a tail. Now what is the new posterior? (Hint: Type post = BernBeta(post, c(0)).) 
+
+```{r}
+
+# Specify the prior:
+a = 6   # Convert to beta shape parameter a.
+b = 4 # Convert to beta shape parameter b.
+
+N = 1   # The total number of flips,
+z = 0   # The number of heads.
+Data = c(rep(0,N-z),rep(1,z))
+
+
+BernBeta(priorBetaAB = c(a,b),Data = Data)
+
+```
+
+(D) Do the same three updates but in the order T, H, H instead of H, H, T. Is the final posterior distribution the same for both orderings of the flip results?
+
+```{r}
+
+BernBeta(c(6,5), c(0,1,1))
+BernBeta(c(6,5), c(1,1,0))
+
+```
+
+### Exercise 6.2 
+
+> [Purpose: Connecting HDIs to the real world, with iterative data collection.] Suppose an election is approaching, and you are interested in knowing whether the general population prefers candidate A or candidate B. There is a just-published poll in the newspaper, which states that of 100 randomly sampled people, 58 preferred candidate A and the remainder preferred candidate B. 
+
+(A) Suppose that before the newspaper poll, your prior belief was a uniform distribution. What is the 95% HDI on your beliefs after learning of the newspaper poll results? 
+
+```{r}
+
+BernBeta(priorBetaAB = c(1,1),Data = c(rep(1,58),rep(0,100-58)),
+         showHDI = TRUE)
+
+```
+
+
+(B) You want to conduct a follow-up poll to narrow down your estimate of the population’s preference. In your follow-up poll, you randomly sample 100 other people and find that 57 prefer candidate A and the remainder prefer candidate B. Assuming that peoples' opinions have not changed between polls, what is the 95% HDI on the posterior?
+
+```{r}
+
+BernBeta(priorBetaAB = c(58,100-58),Data = c(rep(1,57),rep(0,100-57)),
+         showHDI = TRUE)
+
+```
+
+### Exercise 6.3
+
+> [Purpose: Apply the Bayesian method to real data analysis. These data are representative of real data(Kruschke, 2009).] 
+
+Suppose you train people in a simple learning experiment, as follows. When people see the two words, “radio” and “ocean,” on the computer screen, they should press the F key on the computer keyboard. They see several repetitions and learn the response well. Then you introduce another correspondence for them to learn: Whenever the words “radio” and “mountain” appear, they should press the J key on the computer keyboard. 
+
+You keep training them until they know both correspondences well. Now you probe what they’ve learned by asking them about two novel test items. For the first test, you show them the word “radio” by itself and instruct them to make the best response (F or J) based on what they learned before. For the second test, you show them the two words “ocean” and “mountain” and ask them to make the best response.
+
+You do this procedure with 50 people. 
+
+* Your data show that for “radio” by itself, 40 people chose F and 10 chose J. 
+
+* For the word combination “ocean” and “mountain,” 15 chose F and 35 chose J. 
+
+Are people biased toward F or toward J for either of the two probe types? 
+
+To answer this question, assume a uniform prior, and use a 95% HDI to decide which biases can be declared to be credible. (Consult Chapter 12 for how to declare a parameter value to be not credible.)
+
+
+```{r}
+
+BernBeta(priorBetaAB = c(1,1),Data = c(rep(1,40),rep(0,10)),
+         showHDI = TRUE)
+
+BernBeta(priorBetaAB = c(1,1),Data = c(rep(1,15),rep(0,35)),
+         showHDI = TRUE)
+
+```
+
+### Exercise 6.4 
+
+> [Purpose: To explore an unusual prior and learn about the beta distribution in the process.] 
+
+Suppose we have a coin that we know comes from a magic-trick store, and therefore we believe that the coin is **strongly biased either usually to come up heads or usually to come up tails**, but we don’t know which. Express this belief as a beta prior. 
+
+(Hint: See Figure 6.1, upper-left panel.) Now we flip the coin 5 times and it comes up heads in 4 of the 5 flips. What is the posterior distribution? (Use the  function of Section 6.6 (BernBeta.R) to see graphs of the prior and posterior.)
+
+```{r}
+
+BernBeta(priorBetaAB = c(0.01,0.01),Data = c(rep(1,4),rep(0,1)),
+         showHDI = TRUE, 
+         showCentTend="Mode")
+
+```
+
+
+### Exercise 6.5 
+
+> [Purpose: To get hands on experience with the goal of predicting the next datum, and to see how the prior influences that prediction.]
+
+(A) Suppose you have a coin that you know is minted by the government and has not been tampered with. Therefore you have a strong prior belief that the coin is fair. You flip the coin 10 times and get 9 heads. What is your predicted probability of heads for the 11th flip? Explain your answer carefully; justify your choice of prior. 
+
+```{r}
+
+BernBeta(priorBetaAB = c(100,100),Data = c(rep(1,9),rep(0,1)),
+         showHDI = TRUE, showCentTend="Mean")
+
+```
+
+
+(B) Now you have a different coin, this one made of some strange material and marked (in fine print) “Patent Pending, International Magic, Inc.” You flip the coin 10 times and get 9 heads. What is your predicted probability of heads for the 11th flip? Explain your answer carefully; justify your choice of prior. Hint: Use the prior from Exercise 6.4.
+
+```{r}
+
+
+BernBeta(priorBetaAB = c(0.01,0.01),Data = c(rep(1,9),rep(0,1)),
+         showHDI = TRUE, showCentTend="Mean")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
