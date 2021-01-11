@@ -152,8 +152,8 @@ The posterior is a compromise between the prior distribution and the likelihood 
 
 ```{r}
 
-source("DBDA2Eprograms/DBDA2E-utilities.R")
-source("DBDA2Eprograms/BernGrid.R")
+source("Chapters/DBDA2Eprograms/DBDA2E-utilities.R")
+source("Chapters/DBDA2Eprograms/BernGrid.R")
 
 Theta = seq(0, 1, length=1001) # Specify fine comb for Theta.
 head(Theta)
